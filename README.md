@@ -20,7 +20,7 @@ Create a python virtual environment with
 
 And install the pip dependencies with
 
-`pip install -r pip_requirements.txt`
+`pip install -r requirements.txt`
 
 Edit `connections.xml` to include the IP addresses and public keys of the devices in your LAN.
 
