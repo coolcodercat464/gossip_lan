@@ -1236,29 +1236,27 @@ def add_resource(resource_type, text, label, user, filename='', filehash=None):
 # refresh hashes
 def refresh_resources():
     try:
+        print("REFRESH")
         with file_lock_resources:
             with open('resources.xml', 'r') as f:
                 bs = BeautifulSoup(f, 'xml')
-        
-        Bs_data = BeautifulSoup(bs, "xml")
-        b_resources = Bs_data.find_all("resource")
+
+        b_resources = bs.find_all("resource")
 
         bs = BeautifulSoup("<resources></resources>", "xml")
 
-        for resource in b_resourcess:
-            print(resource)
+        for resource in b_resources:
             file = resource.find('filename').text
-            print(file)
             _, hashed = clean_pdf(file)
-            print(hashed)
             if hashed == '':
                 resource.find('filename').string = ''
                 resource.find('filehash').string = ''
             else:
                 resource.find('filehash').string = hashed
 
-            bs.append(resource)
-            print("ADDED")
+            bs.find("resources").append(resource)
+
+        print(bs)
 
         with file_lock_resources:
             with open('resources.xml', 'w') as f:
