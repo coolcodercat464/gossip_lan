@@ -590,15 +590,19 @@ def clientHandler(communication_socket, address):
                     # msg = 'download'.encode() + ':::'.encode() + cipher.encrypt(hashed)
 
                     resource_hash = cipher.decrypt(content.split(b':::')[0])
+                    print(resource_hash)
 
                     # check if you have resource
                     _, _, data_by_hash = read_resources()
+                    print(data_by_hash)
 
                     if resource_hash in data_by_hash.keys():
-                        resource = data_by_hash[resource_hash]
+                        resource = data_by_hash[resource_hash][0]
                         
                         path = resource['filename']
+                        print(path)
                         file, hashed = clean_pdf(path)
+                        print(file, hashed)
 
                         # ensure file exists
                         if hashed != '':
@@ -1488,15 +1492,22 @@ def select_resources_listbox():
                 hash_entry.config(state=tk.NORMAL)
                 label_entry.config(state=tk.NORMAL)
                 text_text.config(state=tk.NORMAL)
+                filehash_entry.config(state=tk.NORMAL)
                 
                 hash_entry.delete(0, tk.END)
                 label_entry.delete(0, tk.END)
                 text_text.delete("1.0", tk.END)
+                filename_entry.delete(0, tk.END)
+                filehash_entry.delete(0, tk.END)
 
                 with list_resources_lock:
                     selected = all_resources[selected_listbox_item]
                     label_entry.insert(0, selected['label'])
                     text_text.insert("1.0", selected['text'])
+                    
+                    filename_entry.insert(0, selected['filename'])
+                    filehash_entry.insert(0, selected['filehash'])
+                    filehash_entry.config(state="readonly")
                     
                     hash_entry.insert(0, hashlib.sha256(selected['label'].encode() + selected['text'].encode()).hexdigest())
                     hash_entry.config(state="readonly")
@@ -1514,11 +1525,14 @@ def unselect_resources_listbox():
     hash_entry.config(state=tk.NORMAL)
     label_entry.config(state=tk.NORMAL)
     text_text.config(state=tk.NORMAL)
+    filehash_entry.config(state=tk.NORMAL)
     
     hash_entry.delete(0, tk.END)
     label_entry.delete(0, tk.END)
     text_text.delete("1.0", tk.END)
-
+    filename_entry.delete(0, tk.END)
+    filehash_entry.delete(0, tk.END)
+    
     with selected_listbox_item_lock:
         selected_listbox_item = None
 
@@ -1553,19 +1567,23 @@ def insert_to_resources_listbox(item):
 
 def mirror_selected_resource():
     try:
+        # attached file
+        if mirroring['filename'] != '':
+            if filename_entry.get() == '':
+                filename_entry.delete(0, tk.END)
+                filename_entry.insert(0, mirroring['filename'])
+            
+            download_selected_resource()
+        
         with selected_listbox_item_lock:
             with list_resources_lock:
                 try:
                     assert selected_listbox_item != None
                     mirroring = all_resources[selected_listbox_item]
-                    add_resource(mirroring['type'], mirroring['text'], mirroring['label'], mirroring['user'], mirroring['filename'], filehash=mirroring['filehash'])
+                    add_resource(mirroring['type'], mirroring['text'], mirroring['label'], mirroring['user'], filename_entry.get(), filehash=mirroring['filehash'])
                 except IndexError:
                     threadsafe_showinfo("Index Error!", "Could not find selected resource")
                     return
-        
-        # attached file
-        if mirroring['filename'] != '':
-            download_selected_resource()
 
         threadsafe_showinfo("Mirrored!", "The selected resource has been mirrored.")
         
