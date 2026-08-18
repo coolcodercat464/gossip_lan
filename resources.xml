@@ -1,2 +1,3 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources></resources>
+<resources><resource><type>resource</type><text>amazing math olympiad book. hash is 05262c30b072b30bcb95f53dc0d94d9eb1baa31d5f0dcb1592e1a0a30f0964b5</text><label>otis math</label><user>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKct5Js6f0uG9VP0K9YFUhluJib7mOOcqhnhVPnn/z51 aidan@debian
+</user><signature>87d25c999da1645d9e61ffe18b76315979f43ccc7365182c3f6152069f9b9f48133af3610f53528c770fc2090b5650d2321852db2d0722f407a912e63fe8830c</signature><filename>files/OTIS-Excerpts.pdf</filename><filehash>05262c30b072b30bcb95f53dc0d94d9eb1baa31d5f0dcb1592e1a0a30f0964b5</filehash></resource></resources>

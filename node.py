@@ -15,6 +15,8 @@ from cryptography.hazmat.primitives import serialization
 import secrets
 import base64
 import hashlib
+from io import BytesIO
+import PyPDF2
 
 # misc
 import datetime
@@ -40,6 +42,32 @@ original_print = builtins.print
 def custom_print(*args):
     with print_lock: original_print(*args)
 builtins.print = custom_print
+
+####################
+## FILES
+####################
+
+# get data of pdf with all metdata removed
+def clean_pdf(file_path):
+    if os.path.exists(file_path):
+        with open(file_path, 'rb') as file:
+            reader = PyPDF2.PdfReader(file)
+            writer = PyPDF2.PdfWriter()
+            
+            # Copy pages without metadata
+            for page in reader.pages:
+                writer.add_page(page)
+                
+            # Write to a bytes buffer
+            buffer = BytesIO()
+            writer.write(buffer)
+            buffer.seek(0)
+
+        data = buffer.read()
+        hashed = hashlib.sha256(data).hexdigest()
+        return data, hashed
+    else:
+        return '', ''
 
 ####################
 ## CRYPTOGRAPHY
@@ -561,39 +589,40 @@ def clientHandler(communication_socket, address):
                 elif command == b'download':
                     # msg = 'download'.encode() + ':::'.encode() + cipher.encrypt(hashed)
 
-                    hashed = cipher.decrypt(content.split(b':::')[0])
+                    resource_hash = cipher.decrypt(content.split(b':::')[0])
 
-                    # check if you have the file
-                    path = 'files/hash_' + hashed + '.pdf'
-                    
-                    if os.path.exists(path):
-                        print("File exists")
+                    # check if you have resource
+                    _, _, data_by_hash = read_resources()
 
-                        with open(path, "rb") as f:
-                            file = f.read()
+                    if resource_hash in data_by_hash.keys():
+                        resource = data_by_hash[resource_hash]
+                        
+                        path = resource['filename']
+                        file, hashed = clean_pdf(path)
 
-                        with dict_lock_servers:
-                            for a, client_socket in servers.items():
-                                if a == communication_socket.getpeername()[0]:
-                                    cipher2 = ciphers[a]
-                                    sendall(client_socket, 'download_response:::'.encode() + file)
-                    else:
-                        print("File doesn't exist")
+                        # ensure file exists
+                        if hashed != '':
+                            with dict_lock_servers:
+                                for a, client_socket in servers.items():
+                                    if a == communication_socket.getpeername()[0]:
+                                        cipher2 = ciphers[a]
+                                        sendall(client_socket, 'download_response:::'.encode() + file)
 
                 # get response from download request
                 elif command == b'download_response':
                     file = content
+                    hashed = hashlib.sha256(content).hexdigest()
 
                     with dict_lock_download_requests:
                         hashed = download_requests[address]
                         del download_requests[address]
 
-                    path = 'files/hash_' + hashed + '.pdf'
-
+                    path = filename_entry.get()
+                    
                     with open(path, "wb") as f:
                         f.write(file)
 
-                    threadsafe_showinfo("Download Successful!", path)
+                    threadsafe_showinfo("Download Successful!", "File at " + path + "with content hash " + hashed)
 
     except Exception as e:
         print("ERROR (clientHandler) FOR ADDRESS", address, ":", e)
@@ -1120,7 +1149,9 @@ def read_resources(resource_type=''):
                     'signature': parent.find('signature').text,
                     'type': parent.find('type').text,
                     'hash': hashed,
-                    'ip': self_ip_address
+                    'ip': self_ip_address,
+                    'filename': parent.find('filename').text,
+                    'filehash': parent.find('filehash').text,
                 }
                 
                 if label.text in data_by_label.keys():
@@ -1142,7 +1173,7 @@ def read_resources(resource_type=''):
         return [], dict(), dict()
 
 # add an entry into resources.xml
-def add_resource(resource_type, text, label, user):
+def add_resource(resource_type, text, label, user, filename='', filehash=None):
     try:
         with file_lock_resources:
             with open('resources.xml', 'r') as f:
@@ -1161,6 +1192,14 @@ def add_resource(resource_type, text, label, user):
         user_tag = bs.new_tag("user")
         user_tag.string = user
 
+        filename_tag = bs.new_tag("filename")
+        filename_tag.string = filename
+
+        filehash_tag = bs.new_tag("filehash")
+        if filehash == None:
+            _, filehash = clean_pdf(filename)
+        filehash_tag.string = filehash
+        
         signature = sign(label.encode() + text.encode()).hex()
         signature_tag = bs.new_tag("signature")
         signature_tag.string = signature
@@ -1172,7 +1211,9 @@ def add_resource(resource_type, text, label, user):
         res_tag.append(label_tag)
         res_tag.append(user_tag)
         res_tag.append(signature_tag)
-
+        res_tag.append(filename_tag)
+        res_tag.append(filehash_tag)
+        
         # add msg tag to file
         resources = bs.find("resources")
         resources.append(res_tag)
@@ -1185,6 +1226,36 @@ def add_resource(resource_type, text, label, user):
     except Exception as e:
         print("ERROR (add_resource):", e)
         threadsafe_showinfo("Error (add_resource)!", e)
+
+# refresh hashes
+def refresh_resources():
+    try:
+        with file_lock_resources:
+            with open('resources.xml', 'r') as f:
+                bs = BeautifulSoup(f, 'xml')
+        
+        Bs_data = BeautifulSoup(bs, "xml")
+        b_resources = Bs_data.find_all("resource")
+
+        bs = BeautifulSoup("<resources></resources>", "xml")
+
+        for resource in b_resourcess:
+            file = resource.find('filename').text
+            _, hashed = clean_pdf(file)
+            if hashed == '':
+                resource.find('filename').string = ''
+                resource.find('filehash').string = ''
+            else:
+                resource.find('filehash').string = hashed
+
+            bs.append(resource)
+
+        with file_lock_resources:
+            with open('resources.xml', 'w') as f:
+                f.write(str(bs))
+    except Exception as e:
+        print("ERROR (refresh_resources):", e)
+        threadsafe_showinfo("Error (refresh_resources)!", e)
 
 ####################
 ## MESSAGE HANDLING
@@ -1276,7 +1347,7 @@ def create_resource():
             threadsafe_showinfo("Error!", "Label empty!")
             return
 
-        add_resource('resource', text, label, self_authentication_public_key_string)
+        add_resource('resource', text, label, self_authentication_public_key_string, filename_entry.get())
         reset_resources_listbox()
 
         threadsafe_showinfo("Resource added!", "Your resource has been created.")
@@ -1297,7 +1368,7 @@ def create_comment():
             threadsafe_showinfo("Error!", "Label empty!")
             return
 
-        add_resource('comment', text, label, self_authentication_public_key_string)
+        add_resource('comment', text, label, self_authentication_public_key_string, filename_entry.get())
  
         reset_resources_listbox()
 
@@ -1487,12 +1558,14 @@ def mirror_selected_resource():
                 try:
                     assert selected_listbox_item != None
                     mirroring = all_resources[selected_listbox_item]
-                    add_resource(mirroring['type'], mirroring['text'], mirroring['label'], mirroring['user'])
+                    add_resource(mirroring['type'], mirroring['text'], mirroring['label'], mirroring['user'], mirroring['filename'], filehash=mirroring['filehash'])
                 except IndexError:
                     threadsafe_showinfo("Index Error!", "Could not find selected resource")
                     return
         
-        reset_resources_listbox()
+        # attached file
+        if mirroring['filename'] != '':
+            download_selected_resource()
 
         threadsafe_showinfo("Mirrored!", "The selected resource has been mirrored.")
         
@@ -1534,6 +1607,7 @@ def download_selected_resource():
         print("ERROR (download_selected_resource):", e)
         threadsafe_showinfo("Error (download_selected_resource)!", e)
 
+# lock text/label if hash is modified
 def on_hash_modified(event):
     print("HASH MODIFIED")
     hashed = hash_entry.get()
@@ -1548,6 +1622,7 @@ def on_hash_modified(event):
         text_text.config(bg='grey')
         label_entry.config(state=tk.DISABLED)
 
+# lock hash if label/text is modified
 def on_label_or_text_modified(event):
     print("LABEL/TEXT MODIFIED")
     
@@ -1563,6 +1638,28 @@ def on_label_or_text_modified(event):
         hash_entry.delete(0, tk.END)
         hash_entry.insert(0, hashed)
         hash_entry.config(state="readonly") 
+
+# recalculate the file hash based on filename (on user's local drive)
+def recalculate_hash():
+    filename = filename_entry.get()
+    if filename.strip() == '': 
+        threadsafe_showinfo("Error!", "Filename empty!")
+        return
+
+    file, hashed = clean_pdf(filename)
+
+    filehash_entry.config(state=tk.NORMAL)
+    filehash_entry.delete(0, tk.END)
+    filehash_entry.insert(0, hashed)
+    filehash_entry.config(state="readonly")
+
+    if hashed == '':
+        threadsafe_showinfo("File does not exist!", "Please correct the file name.")
+
+# refreshes the resources db and the gui
+def refresh_resources_gui():
+    refresh_resources()
+    reset_resources_listbox()
 
 ####################
 ## GUI
@@ -1672,22 +1769,32 @@ label_entry = tk.Entry(frame2)
 label_entry.grid(row=3, column=1, columnspan=3, sticky='ew')
 label_entry.bind("<KeyRelease>", on_label_or_text_modified)
 
+tk.Label(frame2, text='Filename:').grid(row=4, column=0, columnspan=1)
+filename_entry = tk.Entry(frame2)
+filename_entry.grid(row=4, column=1, columnspan=3, sticky='ew')
+
+tk.Label(frame2, text='File Hash:').grid(row=5, column=0, columnspan=1)
+filehash_entry = tk.Entry(frame2, state="readonly")
+filehash_entry.grid(row=5, column=1, columnspan=2, sticky='ew')
+
+tk.Button(frame2, text='RECALCULATE HASH', command=recalculate_hash).grid(row=5, column=3, sticky='ew')
+
 text_text = tk.Text(frame2, width=50, height=7)
-text_text.grid(columnspan=4, sticky='ew')
+text_text.grid(columnspan=6, sticky='ew')
 text_text.bind("<KeyRelease>", on_label_or_text_modified)
 
-tk.Button(frame2, text='ADD RESOURCE', command=create_resource).grid(row=5, column=0, sticky='ew')
-tk.Button(frame2, text='ADD COMMENT', command=create_comment).grid(row=5, column=1, sticky='ew')
-tk.Button(frame2, text='QUERY RESOURCES', command=query_resource).grid(row=5, column=2, sticky='ew')
-tk.Button(frame2, text='QUERY COMMENTS', command=query_comments).grid(row=5, column=3, sticky='ew')
+tk.Button(frame2, text='ADD RESOURCE', command=create_resource).grid(row=7, column=0, sticky='ew')
+tk.Button(frame2, text='ADD COMMENT', command=create_comment).grid(row=7, column=1, sticky='ew')
+tk.Button(frame2, text='QUERY RESOURCES', command=query_resource).grid(row=7, column=2, sticky='ew')
+tk.Button(frame2, text='QUERY COMMENTS', command=query_comments).grid(row=7, column=3, sticky='ew')
 
 resources_listbox = tk.Listbox(frame2, selectmode=tk.SINGLE, width=50, height=7)
 resources_listbox.grid(columnspan=4, sticky='ew')
 
-tk.Button(frame2, text='SELECT', command=select_resources_listbox).grid(row=7, column=0, sticky='ew')
-tk.Button(frame2, text='UNSELECT', command=unselect_resources_listbox).grid(row=7, column=1, sticky='ew')
-tk.Button(frame2, text='DOWNLOAD', command=download_selected_resource).grid(row=7, column=2, sticky='ew')
-tk.Button(frame2, text='MIRROR', command=mirror_selected_resource).grid(row=7, column=3, sticky='ew')
+tk.Button(frame2, text='SELECT', command=select_resources_listbox).grid(row=9, column=0, sticky='ew')
+tk.Button(frame2, text='UNSELECT', command=unselect_resources_listbox).grid(row=9, column=1, sticky='ew')
+tk.Button(frame2, text='REFRESH', command=refresh_resources_gui).grid(row=9, column=2, sticky='ew')
+tk.Button(frame2, text='MIRROR', command=mirror_selected_resource).grid(row=9, column=3, sticky='ew')
 
 reset_resources_listbox()
 
