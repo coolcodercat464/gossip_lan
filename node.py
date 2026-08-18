@@ -151,7 +151,7 @@ def sign(message):
 def verify(public_key, signature, message):
     # parse it
     if type(public_key) == str:
-        public_key = serialization.load_ssh_public_key(public_key.encode("utf-8"))
+        public_key = serialization.load_ssh_public_key(public_key.strip().encode("utf-8"))
 
     # verify signature
     try:
@@ -626,7 +626,9 @@ def clientHandler(communication_socket, address):
                     with open(path, "wb") as f:
                         f.write(file)
 
-                    threadsafe_showinfo("Download Successful!", "File at " + path + "with content hash " + hashed)
+                    _, hashed = clean_pdf(path)
+
+                    threadsafe_showinfo("Download Successful!", "File at " + path + " with content hash " + hashed)
 
     except Exception as e:
         print("ERROR (clientHandler) FOR ADDRESS", address, ":", e)
