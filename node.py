@@ -265,7 +265,7 @@ def clientHandler(communication_socket, address):
                 return False
             else:
                 print('---Message Received from client at', address, '!---')
-                print(content)
+                #print(content)
                 return content
 
         # dh initialisation
@@ -453,17 +453,17 @@ def clientHandler(communication_socket, address):
 
                                     t = threading.Thread(target=add_sender_for_resource, args=('response', sender_ip_address, sender_public_key, False, resources_string))
                                     t.start()
-                                else:
-                                    print('---SENDING MESSAGE TO ALL SERVERS---')
-                                    with dict_lock_servers:
-                                        for a, client_socket in servers.items():
-                                            print('ADDRESS:', a)
-                                
-                                            # encrypt and sign message
-                                            cipher2 = ciphers[a]
 
-                                            msg = 'query'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(label) + ':::'.encode() + time.encode() + ':::'.encode() + signature
-                                            sendall(client_socket, msg)
+                                print('---SENDING MESSAGE TO ALL SERVERS---')
+                                with dict_lock_servers:
+                                    for a, client_socket in servers.items():
+                                        print('ADDRESS:', a)
+                            
+                                        # encrypt and sign message
+                                        cipher2 = ciphers[a]
+
+                                        msg = 'query'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(label) + ':::'.encode() + time.encode() + ':::'.encode() + signature
+                                        sendall(client_socket, msg)
                     else:
                         print("SIGNATURE INVALID")
 
@@ -496,18 +496,18 @@ def clientHandler(communication_socket, address):
 
                                     t = threading.Thread(target=add_sender_for_resource, args=('response', sender_ip_address, sender_public_key, False, resources_string))
                                     t.start()
-                                else:
-                                    print('---SENDING MESSAGE TO ALL SERVERS---')
-                                    with dict_lock_servers:
-                                        for a, client_socket in servers.items():
-                                            print('ADDRESS:', a)
-                                
-                                            # encrypt and sign message
-                                            cipher2 = ciphers[a]
 
-                                            msg = 'query_by_hash'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(hashed) + ':::'.encode() + time.encode() + ':::'.encode() + signature
-                                            
-                                            sendall(client_socket, msg)
+                                print('---SENDING MESSAGE TO ALL SERVERS---')
+                                with dict_lock_servers:
+                                    for a, client_socket in servers.items():
+                                        print('ADDRESS:', a)
+                            
+                                        # encrypt and sign message
+                                        cipher2 = ciphers[a]
+
+                                        msg = 'query_by_hash'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(hashed) + ':::'.encode() + time.encode() + ':::'.encode() + signature
+                                        
+                                        sendall(client_socket, msg)
                     else:
                         print("SIGNATURE INVALID")
                 # comments query
@@ -536,18 +536,18 @@ def clientHandler(communication_socket, address):
 
                                     t = threading.Thread(target=add_sender_for_resource, args=('response_comment', sender_ip_address, sender_public_key, False, comments_string))
                                     t.start()
-                                else:
-                                    print('---SENDING MESSAGE TO ALL SERVERS---')
-                                    with dict_lock_servers:
-                                        for a, client_socket in servers.items():
-                                            print('ADDRESS:', a)
-                                
-                                            # encrypt and sign message
-                                            cipher2 = ciphers[a]
 
-                                            # TODO - implement time-to-live, so message is discarded after 10 seconds, say. this way, theres a cooldown between requests the client can make
-                                            msg = 'query_comments'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(resource_hash) + ':::'.encode() + time.encode() + ':::'.encode() + signature
-                                            sendall(client_socket, msg)
+                                print('---SENDING MESSAGE TO ALL SERVERS---')
+                                with dict_lock_servers:
+                                    for a, client_socket in servers.items():
+                                        print('ADDRESS:', a)
+                            
+                                        # encrypt and sign message
+                                        cipher2 = ciphers[a]
+
+                                        # TODO - implement time-to-live, so message is discarded after 10 seconds, say. this way, theres a cooldown between requests the client can make
+                                        msg = 'query_comments'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(resource_hash) + ':::'.encode() + time.encode() + ':::'.encode() + signature
+                                        sendall(client_socket, msg)
                     else:
                         print("SIGNATURE INVALID")
                         
@@ -560,8 +560,8 @@ def clientHandler(communication_socket, address):
                     
                     with list_resources_lock:
                         for resource in resources_obj:
-                            resource_pub_key = resource['user']
-                            signature = bytes.fromhex(resource['signature'])
+                            resource_pub_key = resource['user'].strip()
+                            signature = bytes.fromhex(resource['signature'].strip())
                             if verify(resource_pub_key, signature, resource['label'].encode() + resource['text'].encode()):
                                 all_resources.append(resource)
                                 item = 'QUERY RESPONSE: ' + resource['label'] + ' (' + parse_user_key(resource['user']) + ')'
@@ -1244,8 +1244,11 @@ def refresh_resources():
         bs = BeautifulSoup("<resources></resources>", "xml")
 
         for resource in b_resourcess:
+            print(resource)
             file = resource.find('filename').text
+            print(file)
             _, hashed = clean_pdf(file)
+            print(hashed)
             if hashed == '':
                 resource.find('filename').string = ''
                 resource.find('filehash').string = ''
@@ -1253,6 +1256,7 @@ def refresh_resources():
                 resource.find('filehash').string = hashed
 
             bs.append(resource)
+            print("ADDED")
 
         with file_lock_resources:
             with open('resources.xml', 'w') as f:
@@ -1567,24 +1571,26 @@ def insert_to_resources_listbox(item):
 
 def mirror_selected_resource():
     try:
-        # attached file
-        if mirroring['filename'] != '':
-            if filename_entry.get() == '':
-                filename_entry.delete(0, tk.END)
-                filename_entry.insert(0, mirroring['filename'])
-            
-            download_selected_resource()
-        
         with selected_listbox_item_lock:
             with list_resources_lock:
                 try:
                     assert selected_listbox_item != None
                     mirroring = all_resources[selected_listbox_item]
-                    add_resource(mirroring['type'], mirroring['text'], mirroring['label'], mirroring['user'], filename_entry.get(), filehash=mirroring['filehash'])
                 except IndexError:
                     threadsafe_showinfo("Index Error!", "Could not find selected resource")
                     return
+        
+        # attached file
+        if mirroring['filename'] != '':
+            if filename_entry.get() == '':
+                filename_entry.delete(0, tk.END)
+                filename_entry.insert(0, mirroring['filename'])
 
+            add_resource(mirroring['type'], mirroring['text'], mirroring['label'], mirroring['user'], filename_entry.get(), filehash=mirroring['filehash'])
+            download_selected_resource()
+        else:
+            add_resource(mirroring['type'], mirroring['text'], mirroring['label'], mirroring['user'], filename_entry.get(), filehash=mirroring['filehash'])
+        
         threadsafe_showinfo("Mirrored!", "The selected resource has been mirrored.")
         
     except Exception as e:
