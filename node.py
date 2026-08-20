@@ -136,7 +136,6 @@ print("Your username is:", self_hostname)
 print("You can change this by changing your hostname.")
 print("Your IP address is:", self_ip_address)
 print("Your public key is:", self_authentication_public_key_string)
-print("You can share this with others. Others can trust you by adding this to their connections.xml:", j"<connection><key>" + self_authentication_public_key_string + "</key><address>" + self_ip_address + "</address><trust>0.5</trust></connection>")
 
 # authenticate user by asking for password to decrypt private key
 while True:
