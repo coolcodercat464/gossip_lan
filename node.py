@@ -496,7 +496,7 @@ def clientHandler(communication_socket, address):
                                         trust = ''
                                         with dict_lock_untrusted_keys:
                                             if a in untrusted_keys.keys():
-                                                trust = 'UNTRUSTED '.encode() + str(datetime.now()).encode() + ' '.encode() + untrusted_keys[a].encode()
+                                                trust = 'UNTRUSTED '.encode() + str(datetime.datetime.now()).encode() + ' '.encode() + untrusted_keys[a].encode()
                                                 trust_sig = sign(trust)
                                                 trust += ' '.encode()
                                                 trust += trust_sig
@@ -504,7 +504,7 @@ def clientHandler(communication_socket, address):
                                         if trust == '':
                                             with dict_lock_trusted_keys:
                                                 if a in trusted_keys.keys():
-                                                    trust = 'TRUSTED '.encode() + str(datetime.now()).encode() + ' '.encode() + trusted_keys[a].encode()
+                                                    trust = 'TRUSTED '.encode() + str(datetime.datetime.now()).encode() + ' '.encode() + trusted_keys[a].encode()
                                                     trust_sig = sign(trust)
                                                     trust += ' '.encode()
                                                     trust += trust_sig
@@ -562,7 +562,7 @@ def clientHandler(communication_socket, address):
                                         trust = ''
                                         with dict_lock_untrusted_keys:
                                             if a in untrusted_keys.keys():
-                                                trust = 'UNTRUSTED '.encode() + str(datetime.now()).encode() + ' '.encode() + untrusted_keys[a].encode()
+                                                trust = 'UNTRUSTED '.encode() + str(datetime.datetime.now()).encode() + ' '.encode() + untrusted_keys[a].encode()
                                                 trust_sig = sign(trust)
                                                 trust += ' '.encode()
                                                 trust += trust_sig
@@ -570,7 +570,7 @@ def clientHandler(communication_socket, address):
                                         if trust == '':
                                             with dict_lock_trusted_keys:
                                                 if a in trusted_keys.keys():
-                                                    trust = 'TRUSTED '.encode() + str(datetime.now()).encode() + ' '.encode() + trusted_keys[a].encode()
+                                                    trust = 'TRUSTED '.encode() + str(datetime.datetime.now()).encode() + ' '.encode() + trusted_keys[a].encode()
                                                     trust_sig = sign(trust)
                                                     trust += ' '.encode()
                                                     trust += trust_sig
@@ -625,7 +625,7 @@ def clientHandler(communication_socket, address):
                                         trust = ''
                                         with dict_lock_untrusted_keys:
                                             if a in untrusted_keys.keys():
-                                                trust = 'UNTRUSTED '.encode() + str(datetime.now()).encode() + ' '.encode() + untrusted_keys[a].encode()
+                                                trust = 'UNTRUSTED '.encode() + str(datetime.datetime.now()).encode() + ' '.encode() + untrusted_keys[a].encode()
                                                 trust_sig = sign(trust)
                                                 trust += ' '.encode()
                                                 trust += trust_sig
@@ -633,7 +633,7 @@ def clientHandler(communication_socket, address):
                                         if trust == '':
                                             with dict_lock_trusted_keys:
                                                 if a in trusted_keys.keys():
-                                                    trust = 'TRUSTED '.encode() + str(datetime.now()).encode() + ' '.encode() + trusted_keys[a].encode()
+                                                    trust = 'TRUSTED '.encode() + str(datetime.datetime.now()).encode() + ' '.encode() + trusted_keys[a].encode()
                                                     trust_sig = sign(trust)
                                                     trust += ' '.encode()
                                                     trust += trust_sig
@@ -965,7 +965,7 @@ def add_sender_for_resource(response_type, address, key, trusted, resources_stri
             # create the actual socket
             client_socket, cipher = create_sender(address, key, widget, trusted)
 
-            msg = response_type.encode() + ':::'.encode() + cipher.encrypt(resources_string) + ':::'.encode() + trust_chain
+            msg = response_type.encode() + ':::'.encode() + cipher.encrypt(resources_string) + ':::'.encode() + b':::'.join(trust_chain)
             sendall(client_socket, msg)
         else:
             exists = False
@@ -980,7 +980,7 @@ def add_sender_for_resource(response_type, address, key, trusted, resources_stri
                             exists = True
 
             if exists:
-                msg = response_type.encode() + ':::'.encode() + cipher.encrypt(resources_string) + ':::'.encode() + trust_chain
+                msg = response_type.encode() + ':::'.encode() + cipher.encrypt(resources_string) + ':::'.encode() + b':::'.join(trust_chain)
                 sendall(client_socket, msg)
                 
     except Exception as e:
