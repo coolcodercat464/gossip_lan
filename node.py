@@ -496,7 +496,7 @@ def clientHandler(communication_socket, address):
                                         trust = ''
                                         with dict_lock_untrusted_keys:
                                             if a in untrusted_keys.keys():
-                                                trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string + '   '.encode() + trusted_keys[a].encode()
+                                                trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
                                                 trust_sig = sign(trust)
                                                 trust += '   '.encode()
                                                 trust += trust_sig
@@ -504,7 +504,7 @@ def clientHandler(communication_socket, address):
                                         if trust == '':
                                             with dict_lock_trusted_keys:
                                                 if a in trusted_keys.keys():
-                                                    trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string + '   '.encode() + trusted_keys[a].encode()
+                                                    trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
                                                     trust_sig = sign(trust)
                                                     trust += '   '.encode()
                                                     trust += trust_sig
@@ -562,7 +562,7 @@ def clientHandler(communication_socket, address):
                                         trust = ''
                                         with dict_lock_untrusted_keys:
                                             if a in untrusted_keys.keys():
-                                                trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string + '   '.encode() + trusted_keys[a].encode()
+                                                trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
                                                 trust_sig = sign(trust)
                                                 trust += '   '.encode()
                                                 trust += trust_sig
@@ -570,7 +570,7 @@ def clientHandler(communication_socket, address):
                                         if trust == '':
                                             with dict_lock_trusted_keys:
                                                 if a in trusted_keys.keys():
-                                                    trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string + '   '.encode() + trusted_keys[a].encode()
+                                                    trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
                                                     trust_sig = sign(trust)
                                                     trust += '   '.encode()
                                                     trust += trust_sig
@@ -625,7 +625,7 @@ def clientHandler(communication_socket, address):
                                         trust = ''
                                         with dict_lock_untrusted_keys:
                                             if a in untrusted_keys.keys():
-                                                trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string + '   '.encode() + untrusted_keys[a].encode()
+                                                trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + untrusted_keys[a].encode()
                                                 trust_sig = sign(trust)
                                                 trust += '   '.encode()
                                                 trust += trust_sig
@@ -633,7 +633,7 @@ def clientHandler(communication_socket, address):
                                         if trust == '':
                                             with dict_lock_trusted_keys:
                                                 if a in trusted_keys.keys():
-                                                    trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string + '   '.encode() + trusted_keys[a].encode()
+                                                    trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
                                                     trust_sig = sign(trust)
                                                     trust += '   '.encode()
                                                     trust += trust_sig
