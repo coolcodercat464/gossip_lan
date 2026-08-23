@@ -658,8 +658,6 @@ def clientHandler(communication_socket, address):
                     resources_string = cipher.decrypt(resources_encoded)
                     resources_obj = json.loads(resources_string)
 
-                    print("RESOURCE:", resources_obj, "TRUST CHAIN:", trust_chain)
-
                     # verify trust chain
                     if trust_this_connection:
                         transitive_trust_valid = "TRUSTED"
@@ -671,15 +669,15 @@ def clientHandler(communication_socket, address):
                             transitive_trust_valid = "TRUSTED"
                             this_key = None
                             for link in trust_chain:
-                                print("LINK", link)
                                 transitive_trust_hops += 1
                                 trust, time, current_key, next_key, signature = link.split(b'   ')
+                                string = b'   '.join([trust, time, current_key, next_key])
                                 if this_key != None and this_key != current_key:
                                     raise Exception("Invalid trust chain")
                                 else:
                                     this_key = next_key
                                 
-                                if verify(current_key, signature, trust + b'   ' + time + b'   ' + current_key + b'   ' + next_key):
+                                if verify(current_key.decode(), signature, string):
                                     if trust != b'TRUSTED': transitive_trust_valid = "UNTRUSTED"
                                 else:
                                     raise Exception("Signature invalid (invalid trust chain)")
@@ -709,15 +707,22 @@ def clientHandler(communication_socket, address):
                     else:
                         transitive_trust_valid = "UNTRUSTED"
                         transitive_trust_hops = 1
-                        if trust_chain != ['']:
+                        if len(trust_chain[0]) > 1:
                             transitive_trust_valid = "TRUSTED"
+                            this_key = None
                             for link in trust_chain:
                                 transitive_trust_hops += 1
-                                trust, time, key, signature = link.split(b'   ')
-                                if verify(key, signature, trust + b'   ' + time + b'   ' + key):
+                                trust, time, current_key, next_key, signature = link.split(b'   ')
+                                string = b'   '.join([trust, time, current_key, next_key])
+                                if this_key != None and this_key != current_key:
+                                    raise Exception("Invalid trust chain")
+                                else:
+                                    this_key = next_key
+                                
+                                if verify(current_key.decode(), signature, string):
                                     if trust != b'TRUSTED': transitive_trust_valid = "UNTRUSTED"
                                 else:
-                                    raise Exception("Signature invalid")
+                                    raise Exception("Signature invalid (invalid trust chain)")
                     
                     with list_resources_lock:
                         for comment in comments_obj:
