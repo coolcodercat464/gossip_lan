@@ -658,6 +658,8 @@ def clientHandler(communication_socket, address):
                     resources_string = cipher.decrypt(resources_encoded)
                     resources_obj = json.loads(resources_string)
 
+                    print("RESOURCE:", resources_obj, "TRUST CHAIN:", trust_chain)
+
                     # verify trust chain
                     if trust_this_connection:
                         transitive_trust_valid = "UNKNOWN"
@@ -665,9 +667,10 @@ def clientHandler(communication_socket, address):
                     else:
                         transitive_trust_valid = "UNTRUSTED"
                         transitive_trust_hops = 1
-                        if trust_chain != ['']:
+                        if len(trust_chain[0]) > 1:
                             transitive_trust_valid = "TRUSTED"
                             for link in trust_chain:
+                                print("LINK", link)
                                 transitive_trust_hops += 1
                                 trust, time, key, signature = link.split(b'   ')
                                 if verify(key, signature, trust + b'   ' + time + b'   ' + key):
@@ -684,7 +687,7 @@ def clientHandler(communication_socket, address):
                                 item = 'QUERY RESPONSE (' + transitive_trust_valid + ' over ' + str(transitive_trust_hops) + ' hop): ' + resource['label'] + ' (' + parse_user_key(resource['user']) + ')'
                                 insert_to_resources_listbox(item)
                             else:
-                                print("INVALID SIGNATURE. UH OH.")
+                                raise Exception("Signature invalid")
 
                 # get response from comment query
                 elif command == b'response_comment':
