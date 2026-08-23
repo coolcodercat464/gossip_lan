@@ -625,7 +625,7 @@ def clientHandler(communication_socket, address):
                                         trust = ''
                                         with dict_lock_untrusted_keys:
                                             if a in untrusted_keys.keys():
-                                                trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + untrusted_keys[a].encode()
+                                                trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key + '   '.encode() + untrusted_keys[a].encode()
                                                 trust_sig = sign(trust)
                                                 trust += '   '.encode()
                                                 trust += trust_sig
@@ -633,7 +633,7 @@ def clientHandler(communication_socket, address):
                                         if trust == '':
                                             with dict_lock_trusted_keys:
                                                 if a in trusted_keys.keys():
-                                                    trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + trusted_keys[a].encode()
+                                                    trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key + '   '.encode() + trusted_keys[a].encode()
                                                     trust_sig = sign(trust)
                                                     trust += '   '.encode()
                                                     trust += trust_sig
@@ -669,14 +669,20 @@ def clientHandler(communication_socket, address):
                         transitive_trust_hops = 1
                         if len(trust_chain[0]) > 1:
                             transitive_trust_valid = "TRUSTED"
+                            this_key = None
                             for link in trust_chain:
                                 print("LINK", link)
                                 transitive_trust_hops += 1
-                                trust, time, key, signature = link.split(b'   ')
-                                if verify(key, signature, trust + b'   ' + time + b'   ' + key):
+                                trust, time, current_key, next_key, signature = link.split(b'   ')
+                                if this_key != None and this_key != current_key:
+                                    raise Exception("Invalid trust chain")
+                                else:
+                                    this_key = next_key
+                                
+                                if verify(current_key, signature, trust + b'   ' + time + b'   ' + current_key + b'   ' + next_key):
                                     if trust != b'TRUSTED': transitive_trust_valid = "UNTRUSTED"
                                 else:
-                                    raise Exception("Signature invalid")
+                                    raise Exception("Signature invalid (invalid trust chain)")
                     
                     with list_resources_lock:
                         for resource in resources_obj:
