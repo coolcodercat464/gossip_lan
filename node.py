@@ -491,33 +491,34 @@ def clientHandler(communication_socket, address):
                                 print('---SENDING MESSAGE TO ALL SERVERS---')
                                 with dict_lock_servers:
                                     for a, client_socket in servers.items():
-                                        print('ADDRESS:', a)
+                                        if a != address:
+                                            print('ADDRESS:', a)
 
-                                        trust = ''
-                                        with dict_lock_untrusted_keys:
-                                            if a in untrusted_keys.keys():
-                                                trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
-                                                trust_sig = sign(trust)
-                                                trust += '   '.encode()
-                                                trust += trust_sig
-
-                                        if trust == '':
-                                            with dict_lock_trusted_keys:
-                                                if a in trusted_keys.keys():
-                                                    trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
+                                            trust = ''
+                                            with dict_lock_untrusted_keys:
+                                                if a in untrusted_keys.keys():
+                                                    trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
                                                     trust_sig = sign(trust)
                                                     trust += '   '.encode()
                                                     trust += trust_sig
 
-                                        if trust != '':
-                                            new_trust_chain = trust_chain + [trust]
-                                            new_trust_chain = b':::'.join(new_trust_chain)
-                            
-                                            # encrypt and sign message
-                                            cipher2 = ciphers[a]
+                                            if trust == '':
+                                                with dict_lock_trusted_keys:
+                                                    if a in trusted_keys.keys():
+                                                        trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
+                                                        trust_sig = sign(trust)
+                                                        trust += '   '.encode()
+                                                        trust += trust_sig
 
-                                            msg = 'query'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(label) + ':::'.encode() + time.encode() + ':::'.encode() + signature + ':::'.encode() + new_trust_chain
-                                            sendall(client_socket, msg)
+                                            if trust != '':
+                                                new_trust_chain = trust_chain + [trust]
+                                                new_trust_chain = b':::'.join(new_trust_chain)
+                                
+                                                # encrypt and sign message
+                                                cipher2 = ciphers[a]
+
+                                                msg = 'query'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(label) + ':::'.encode() + time.encode() + ':::'.encode() + signature + ':::'.encode() + new_trust_chain
+                                                sendall(client_socket, msg)
                     else:
                         raise Exception("Signature invalid")
 
@@ -557,33 +558,34 @@ def clientHandler(communication_socket, address):
                                 print('---SENDING MESSAGE TO ALL SERVERS---')
                                 with dict_lock_servers:
                                     for a, client_socket in servers.items():
-                                        print('ADDRESS:', a)
+                                        if a != address:
+                                            print('ADDRESS:', a)
 
-                                        trust = ''
-                                        with dict_lock_untrusted_keys:
-                                            if a in untrusted_keys.keys():
-                                                trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
-                                                trust_sig = sign(trust)
-                                                trust += '   '.encode()
-                                                trust += trust_sig
-
-                                        if trust == '':
-                                            with dict_lock_trusted_keys:
-                                                if a in trusted_keys.keys():
-                                                    trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
+                                            trust = ''
+                                            with dict_lock_untrusted_keys:
+                                                if a in untrusted_keys.keys():
+                                                    trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
                                                     trust_sig = sign(trust)
                                                     trust += '   '.encode()
                                                     trust += trust_sig
 
-                                        if trust != '':
-                                            new_trust_chain = trust_chain + [trust]
-                                            new_trust_chain = b':::'.join(new_trust_chain)
-                            
-                                            # encrypt and sign message
-                                            cipher2 = ciphers[a]
+                                            if trust == '':
+                                                with dict_lock_trusted_keys:
+                                                    if a in trusted_keys.keys():
+                                                        trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
+                                                        trust_sig = sign(trust)
+                                                        trust += '   '.encode()
+                                                        trust += trust_sig
 
-                                            msg = 'query_by_hash'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(hashed) + ':::'.encode() + time.encode() + ':::'.encode() + signature + ':::'.encode() + new_trust_chain
-                                            sendall(client_socket, msg)
+                                            if trust != '':
+                                                new_trust_chain = trust_chain + [trust]
+                                                new_trust_chain = b':::'.join(new_trust_chain)
+                                
+                                                # encrypt and sign message
+                                                cipher2 = ciphers[a]
+
+                                                msg = 'query_by_hash'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(hashed) + ':::'.encode() + time.encode() + ':::'.encode() + signature + ':::'.encode() + new_trust_chain
+                                                sendall(client_socket, msg)
                     else:
                         raise Exception("Signature invalid")
                         
@@ -620,33 +622,34 @@ def clientHandler(communication_socket, address):
                                 print('---SENDING MESSAGE TO ALL SERVERS---')
                                 with dict_lock_servers:
                                     for a, client_socket in servers.items():
-                                        print('ADDRESS:', a)
+                                        if a != address:
+                                            print('ADDRESS:', a)
 
-                                        trust = ''
-                                        with dict_lock_untrusted_keys:
-                                            if a in untrusted_keys.keys():
-                                                trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + untrusted_keys[a].encode()
-                                                trust_sig = sign(trust)
-                                                trust += '   '.encode()
-                                                trust += trust_sig
-
-                                        if trust == '':
-                                            with dict_lock_trusted_keys:
-                                                if a in trusted_keys.keys():
-                                                    trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
+                                            trust = ''
+                                            with dict_lock_untrusted_keys:
+                                                if a in untrusted_keys.keys():
+                                                    trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + untrusted_keys[a].encode()
                                                     trust_sig = sign(trust)
                                                     trust += '   '.encode()
                                                     trust += trust_sig
 
-                                        if trust != '':
-                                            new_trust_chain = trust_chain + [trust]
-                                            new_trust_chain = b':::'.join(new_trust_chain)
-                            
-                                            # encrypt and sign message
-                                            cipher2 = ciphers[a]
+                                            if trust == '':
+                                                with dict_lock_trusted_keys:
+                                                    if a in trusted_keys.keys():
+                                                        trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
+                                                        trust_sig = sign(trust)
+                                                        trust += '   '.encode()
+                                                        trust += trust_sig
 
-                                            msg = 'query_comments'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(resource_hash) + ':::'.encode() + time.encode() + ':::'.encode() + signature + ':::'.encode() + new_trust_chain
-                                            sendall(client_socket, msg)
+                                            if trust != '':
+                                                new_trust_chain = trust_chain + [trust]
+                                                new_trust_chain = b':::'.join(new_trust_chain)
+                                
+                                                # encrypt and sign message
+                                                cipher2 = ciphers[a]
+
+                                                msg = 'query_comments'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(resource_hash) + ':::'.encode() + time.encode() + ':::'.encode() + signature + ':::'.encode() + new_trust_chain
+                                                sendall(client_socket, msg)
                     else:
                         raise Exception("Signature invalid")
                         
