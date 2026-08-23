@@ -291,7 +291,7 @@ def clientHandler(communication_socket, address):
                 return False
             else:
                 print('---Message Received from client at', address, '!---')
-                #print(content)
+                print(content)
                 return content
 
         # dh initialisation
@@ -731,7 +731,7 @@ def clientHandler(communication_socket, address):
                         for comment in comments_obj:
                             comment_pub_key = comment['user']
                             signature = bytes.fromhex(comment['signature'])
-                            if verify(comment_pub_key, signature, comment['label'].encode() + comment['text'].encode() + resource['filehash'].encode()):
+                            if verify(comment_pub_key, signature, comment['label'].encode() + comment['text'].encode() + comment['filehash'].encode()):
                                 all_resources.append(comment)
                                 item = 'COMMENT QUERY RESPONSE (' + transitive_trust_valid + ' over ' + str(transitive_trust_hops) + ' hop FROM ' + parse_user_key(client_authentication_public_key) + '): ' + comment['label'] + ' (' + parse_user_key(comment['user']) + ')'
                                 insert_to_resources_listbox(item)
@@ -1701,7 +1701,7 @@ def reset_resources_listbox():
     global all_resources, selected_listbox_item, resources_by_label, resources_by_hash, comments_by_hash
     
     data, data_by_labels, data_by_hashes = read_resources()
-    _, _, comment_hash = read_resources(resource_type='comment')
+    _, comment_hash, _ = read_resources(resource_type='comment')
 
     with dict_lock_resources_by_label:
         resources_by_label = dict(data_by_labels)
