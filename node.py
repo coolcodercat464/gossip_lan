@@ -662,8 +662,8 @@ def clientHandler(communication_socket, address):
 
                     # verify trust chain
                     if trust_this_connection:
-                        transitive_trust_valid = "UNKNOWN"
-                        transitive_trust_hops = "UNKNOWN"
+                        transitive_trust_valid = "TRUSTED"
+                        transitive_trust_hops = 1
                     else:
                         transitive_trust_valid = "UNTRUSTED"
                         transitive_trust_hops = 1
@@ -684,7 +684,7 @@ def clientHandler(communication_socket, address):
                             signature = bytes.fromhex(resource['signature'].strip())
                             if verify(resource_pub_key, signature, resource['label'].encode() + resource['text'].encode() + resource['filehash'].encode()):
                                 all_resources.append(resource)
-                                item = 'QUERY RESPONSE (' + transitive_trust_valid + ' over ' + str(transitive_trust_hops) + ' hop): ' + resource['label'] + ' (' + parse_user_key(resource['user']) + ')'
+                                item = 'QUERY RESPONSE (' + transitive_trust_valid + ' over ' + str(transitive_trust_hops) + ' hop FROM ' + parse_user_key(client_authentication_public_key) + '): ' + resource['label'] + ' (' + parse_user_key(resource['user']) + ')'
                                 insert_to_resources_listbox(item)
                             else:
                                 raise Exception("Signature invalid")
@@ -698,8 +698,8 @@ def clientHandler(communication_socket, address):
 
                     # verify trust chain
                     if trust_this_connection:
-                        transitive_trust_valid = "UNKNOWN"
-                        transitive_trust_hops = "UNKNOWN"
+                        transitive_trust_valid = "TRUSTED"
+                        transitive_trust_hops = 1
                     else:
                         transitive_trust_valid = "UNTRUSTED"
                         transitive_trust_hops = 1
@@ -719,7 +719,7 @@ def clientHandler(communication_socket, address):
                             signature = bytes.fromhex(comment['signature'])
                             if verify(comment_pub_key, signature, comment['label'].encode() + comment['text'].encode() + resource['filehash'].encode()):
                                 all_resources.append(comment)
-                                item = 'COMMENT QUERY RESPONSE (' + transitive_trust_valid + ' over ' + str(transitive_trust_hops) + 'hops): ' + comment['label'] + ' (' + parse_user_key(comment['user']) + ')'
+                                item = 'COMMENT QUERY RESPONSE (' + transitive_trust_valid + ' over ' + str(transitive_trust_hops) + ' hop FROM ' + parse_user_key(client_authentication_public_key) + '): ' + comment['label'] + ' (' + parse_user_key(comment['user']) + ')'
                                 insert_to_resources_listbox(item)
                             else:
                                 raise Exception("Signature invalid")
