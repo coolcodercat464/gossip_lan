@@ -1,4 +1,6 @@
 import os
+from io import BytesIO
+import PyPDF2
 
 # get data of pdf with all metadata removed
 def get_pdf_data_clean(file_path: str) -> tuple[str, str]:
