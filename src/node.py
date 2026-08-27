@@ -18,159 +18,28 @@ import hashlib
 
 # custom modules
 from pdf_tools import get_pdf_data_clean
-from crypto_tools import GCM
+from crypto_tools import GCM, verify
+from socket_tools import get_local_ip
+from database_tools import *
+
+import socket_tools
+import crypto_tools
+import database_tools
 
 # misc
 import datetime
 import builtins
 import os
+import json
 
 # queues
 from collections import deque
 import queue # more thread safe apparently
 
-# database and authentication
-from bs4 import BeautifulSoup # pip install beautifulsoup4
-import json
-
 # gui
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
-
-# thread-safe print
-print_lock = threading.Lock()
-original_print = builtins.print
-def custom_print(*args):
-    with print_lock: original_print(*args)
-builtins.print = custom_print
-
-####################
-## AUTHENTICATION
-####################
-
-# get your own ip
-def get_local_ip():
-    try:
-        # Create a UDP socket
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # Connect to a remote server (e.g., Google DNS)
-        s.connect(('8.8.8.8', 80))
-        # Get the local socket name (IP and port)
-        local_ip = s.getsockname()[0]
-        s.close()
-        return local_ip
-    except Exception as e:
-        return f"Error: {e}"
-
-# load local ssh public and private keys
-# generated with 'ssh-keygen -t ed25519'
-with open('key.pub', 'rb') as key_file:
-    public_key_bytes = key_file.read()
-
-# get details about yourself
-self_authentication_public_key_string = public_key_bytes.decode()
-self_authentication_public_key = serialization.load_ssh_public_key(public_key_bytes)
-self_hostname = socket.gethostname()
-self_ip_address = get_local_ip()
-
-# launch app
-print("WELCOME TO P2P LAN")
-print("Your username is:", self_hostname)
-print("You can change this by changing your hostname.")
-print("Your IP address is:", self_ip_address)
-print("Your public key is:", self_authentication_public_key_string)
-
-# authenticate user by asking for password to decrypt private key
-while True:
-    print()
-    password = input("Enter your SSH key password: ").encode()
-    try:
-        with open('key', 'rb') as key_file:
-            self_authentication_private_key = serialization.load_ssh_private_key(key_file.read(), password=password)
-        break
-    except Exception as e:
-        print("ERROR. PLEASE TRY AGAIN.")
-        print(e)
-
-# sign challenge
-def sign(message):
-    return self_authentication_private_key.sign(message)
-
-# verify a signature
-def verify(public_key, signature, message):
-    # parse it
-    if type(public_key) == str:
-        public_key = serialization.load_ssh_public_key(public_key.strip().encode("utf-8"))
-
-    # verify signature
-    try:
-        public_key.verify(signature, message)
-        return True
-    except:
-        return False
-
-####################
-## SOCKETS
-####################
-   
-# send message + byte size
-def sendall(this_socket, content):
-    try:
-        address = this_socket.getpeername()
-        with dict_lock_socket_locks:
-            print(address, all_socket_locks)
-            this_socket_lock = all_socket_locks[address]
-        
-        with this_socket_lock:
-            print("---Sending Information---")
-            byte_size = str(len(content))
-            msg = byte_size + ' '
-
-            print(msg, content)
-            this_socket.sendall(msg.encode() + content)
-    except Exception as e:
-        print("ERROR (sendall) FOR ADDRESS", this_socket.getpeername()[0], ":", e)
-        threadsafe_showinfo("Error (sendall) for address " + this_socket.getpeername()[0], e)
-
-# receive all (no matter byte size)
-def recvall(this_socket, chunk_size=1024):
-    try:
-        address = this_socket.getpeername()
-        with dict_lock_socket_locks:
-            print(address, all_socket_locks)
-            this_socket_lock = all_socket_locks[address]
-        
-        with this_socket_lock:
-            print("---Waiting for Message---")
-            first_chunk = this_socket.recv(chunk_size)
-            # connection terminated
-            if not first_chunk:
-                return False
-
-            space_enc = ' '.encode()
-            splitted = first_chunk.split(space_enc)
-            print(splitted[0])
-            byte_size = int(splitted[0].decode())
-            everything_else = space_enc.join(splitted[1:])
-
-            if len(everything_else) == int(byte_size):
-                return everything_else
-            else:
-                all_chunks = everything_else
-                byte_size -= len(everything_else)
-                while byte_size > 0:
-                    next_chunk = this_socket.recv(chunk_size)
-                    # connection terminated
-                    if not next_chunk:
-                        return False
-                    all_chunks += next_chunk
-                    byte_size -= len(next_chunk)
-
-                return all_chunks
-    except Exception as e:
-        print("ERROR (recvall) FOR ADDRESS", this_socket.getpeername()[0], ":", e)
-        threadsafe_showinfo("Error (recvall) for address " + this_socket.getpeername()[0], e)
 
 ####################
 ## GLOBALS
@@ -214,6 +83,66 @@ download_requests = dict()
 resources_by_label = dict()
 resources_by_hash = dict()
 comments_by_hash = dict()
+
+####################
+## AUTHENTICATION
+####################
+
+# load local ssh public and private keys
+# generated with 'ssh-keygen -t ed25519'
+with open('key.pub', 'rb') as key_file:
+    public_key_bytes = key_file.read()
+
+# get details about yourself
+self_authentication_public_key_string = public_key_bytes.decode()
+self_authentication_public_key = serialization.load_ssh_public_key(public_key_bytes)
+self_hostname = socket.gethostname()
+self_ip_address = get_local_ip()
+
+# launch app
+print("WELCOME TO P2P LAN")
+print("Your username is:", self_hostname)
+print("You can change this by changing your hostname.")
+print("Your IP address is:", self_ip_address)
+print("Your public key is:", self_authentication_public_key_string)
+
+# authenticate user by asking for password to decrypt private key
+while True:
+    print()
+    password = input("Enter your SSH key password: ").encode()
+    try:
+        with open('key', 'rb') as key_file:
+            self_authentication_private_key = serialization.load_ssh_private_key(key_file.read(), password=password)
+        break
+    except Exception as e:
+        print("ERROR. PLEASE TRY AGAIN.")
+        print(e)
+
+####################
+## FUNCTIONS
+####################
+
+# thread-safe print
+print_lock = threading.Lock()
+original_print = builtins.print
+def custom_print(*args):
+    with print_lock: original_print(*args)
+builtins.print = custom_print
+
+# sendall/recvall functions with dict_lock_socket_locks and all_socket_locks
+def sendall(this_socket, content):
+    return socket_tools.sendall(this_socket, content, all_socket_locks, dict_lock_socket_locks)
+
+def recvall(this_socket, chunksize=1024):
+    return socket_tools.recvall(this_socket, all_socket_locks, dict_lock_socket_locks, chunksize)
+
+# signature function
+def sign(message): 
+    return crypto_tools.sign(message, self_authentication_private_key)
+
+# add resource function
+def add_resource(resource_type, text, label, user, filename='', filehash=None):
+    return database_tools.add_resource(resource_type, text, label, user, self_authentication_private_key, filename='', filehash=None)
 
 ####################
 ## LISTENER
@@ -1037,330 +966,6 @@ def create_sender(address, server_public_key, widget, trusted):
 
         print('---CLOSING CONNECTION TO SERVER', address, '---')
         cleanup(address)
-
-####################
-## DATABASE
-####################
-
-# thread safety
-file_lock_messages = threading.Lock() # for messages
-file_lock_connections = threading.Lock() # for connections
-file_lock_resources = threading.Lock() # for resources
-
-# reads the connections.xml file
-# <connections><connection><address>...</address> <key>...</key></connection>... </connections>
-def read_connections():
-    try:
-        # thread safety
-        with file_lock_connections:
-            with open('connections.xml') as f:
-                data = f.read()
-        
-        Bs_data = BeautifulSoup(data, "xml")
-        b_connections = Bs_data.find_all("connection")
-        
-        data = {connection.find_all("address")[0].text: connection.find_all("key")[0].text for connection in b_connections}
-    except Exception as e:
-        print("ERROR:", e)
-        data = dict()
-       
-    return data
-
-# add an entry into connections.xml
-def add_connection(address, key):
-    try:
-        with file_lock_connections:
-            with open('connections.xml', 'r') as f:
-                bs = BeautifulSoup(f, 'xml')
-
-        # add data
-        address_tag = bs.new_tag("address")
-        address_tag.string = address
-
-        key_tag = bs.new_tag("key")
-        key_tag.string = key
-
-        # add subtags to msg tag
-        con_tag = bs.new_tag("connection")
-        con_tag.append(address_tag)
-        con_tag.append(key_tag)
-
-        # add con tag to file
-        connections = bs.find("connections")
-        connections.append(con_tag)
-
-        with file_lock_connections:
-            with open('connections.xml', 'w') as f:
-                f.write(str(bs))
-    except Exception as e:
-        print("ERROR (add_connection):", e)
-        threadsafe_showinfo("Error (add_connection)!", e)
-
-# remove an entry from connections.xml
-def remove_connection(address):
-    try:
-        with file_lock_connections:
-            with open('connections.xml', 'r') as f:
-                bs = BeautifulSoup(f, 'xml')
-
-        for item in bs.find_all('connection'):
-            if item.find('address').string == address:
-                item.decompose()
-
-        with file_lock_connections:
-            with open('connections.xml', 'w') as f:
-                f.write(str(bs))
-    except Exception as e:
-        print("ERROR (remove_connection):", e)
-        threadsafe_showinfo("Error (remove_connection)!", e)
-
-# reads the messages.xml file
-# <messages><message><text>...</text> <user>...</user> <channel>...</channel></message>... </messages>
-def read_messages():
-    try:
-        # thread safety
-        with file_lock_messages:
-            with open('messages.xml') as f:
-                data = f.read()
-
-        Bs_data = BeautifulSoup(data, "xml")
-        b_message = Bs_data.find_all("message")
-     
-        data = [{
-                'text': msg.find('text').text,
-                'user': msg.find('user').text,
-                'channel': msg.find('channel').text
-            } for msg in b_message]
-           
-        return data
-    except Exception as e:
-        print("ERROR (read_messages):", e)
-        threadsafe_showinfo("Error (read_messages)!", e)
-        return dict()
-
-# check whether message exists
-def message_exists(text, user, channel, time):
-    try:
-        # thread safety
-        with file_lock_messages:
-            with open('messages.xml') as f:
-                data = f.read()
-
-        Bs_data = BeautifulSoup(data, "xml")
-        b_message = Bs_data.find_all("message")
-
-        for msg in b_message:
-            if msg.find('time').text.strip() == time.strip():
-                if msg.find('user').text.strip() == user.strip():
-                    if msg.find('text').text.strip() == text.strip():
-                        if msg.find('channel').text.strip() == channel.strip():
-                            return True
-     
-        return False
-    except Exception as e:
-        print("ERROR (message_exists):", e)
-        threadsafe_showinfo("Error (message_exists)!", e)
-        return False
-
-# get hostname (username) from user's public key
-# ssh-rsa ACTUAL_KEY user@hostname
-def parse_user_key(user):
-    try:
-        username = user.split(' ')[-1]
-        user_hostname = username.split('@')[-1].strip()
-        return user_hostname
-    except Exception as e:
-        print("ERROR (parse_user_key):", e)
-        threadsafe_showinfo("Error (parse_user_key)!", e)
-        return 'ERROR'
-
-# add an entry into messages.xml
-def add_message(user, text, channel, time):
-    try:
-        with file_lock_messages:
-            with open('messages.xml', 'r') as f:
-                bs = BeautifulSoup(f, 'xml')
-
-        # add data
-        user_tag = bs.new_tag("user")
-        user_tag.string = user
-
-        text_tag = bs.new_tag("text")
-        text_tag.string = text
-
-        channel_tag = bs.new_tag("channel")
-        channel_tag.string = channel
-
-        time_tag = bs.new_tag("time")
-        time_tag.string = time
-
-        # add subtags to msg tag
-        msg_tag = bs.new_tag("message")
-        msg_tag.append(user_tag)
-        msg_tag.append(text_tag)
-        msg_tag.append(channel_tag)
-        msg_tag.append(time_tag)
-
-        # add msg tag to file
-        messages = bs.find("messages")
-        messages.append(msg_tag)
-
-        ## TODO - add xml data encryption
-
-        with file_lock_messages:
-            with open('messages.xml', 'w') as f:
-                f.write(str(bs))
-    except Exception as e:
-        print("ERROR (add_message):", e)
-        threadsafe_showinfo("Error (add_message)!", e)
-
-# remove all messages from messages.xml
-def purge_messages():
-    with file_lock_messages:
-        with open('messages.xml', 'w') as f:
-            f.write('<?xml version="1.0" encoding="utf-8"?><messages><</messages>')
-
-    show_messages()
-
-# reads the resources.xml file
-# <resources><resource><type>...</type> <text>...</text> <label>...</label> <signature>...</signature></resource>... </resources>
-def read_resources(resource_type=''):
-    try:
-        # thread safety
-        with file_lock_resources:
-            with open('resources.xml') as f:
-                data = f.read()
-
-        Bs_data = BeautifulSoup(data, "xml")
-        b_labels = Bs_data.find_all("label")
-     
-        data = []
-
-        data_by_label = dict()
-        data_by_hash = dict()
-
-        for label in b_labels:
-            parent = label.parent
-
-            if resource_type == '' or parent.find('type').text == resource_type:
-                hashed = hashlib.sha256(label.text.encode() + parent.find('text').text.encode()).hexdigest()
-                
-                details = {
-                    'text': parent.find('text').text,
-                    'label': label.text,
-                    'user': parent.find('user').text,
-                    'signature': parent.find('signature').text,
-                    'type': parent.find('type').text,
-                    'hash': hashed,
-                    'ip': self_ip_address,
-                    'filename': parent.find('filename').text,
-                    'filehash': parent.find('filehash').text,
-                }
-                
-                if label.text in data_by_label.keys():
-                    data_by_label[label.text].append(details)
-                else:
-                    data_by_label[label.text] = [details]
-
-                if hashed in data_by_hash.keys():
-                    data_by_hash[hashed].append(details)
-                else:
-                    data_by_hash[hashed] = [details]
-                 
-                data.append(details)
-           
-        return data, data_by_label, data_by_hash
-    except Exception as e:
-        print("ERROR (read_resources):", e)
-        threadsafe_showinfo("Error (read_resources)!", e)
-        return [], dict(), dict()
-
-# add an entry into resources.xml
-def add_resource(resource_type, text, label, user, filename='', filehash=None):
-    try:
-        with file_lock_resources:
-            with open('resources.xml', 'r') as f:
-                bs = BeautifulSoup(f, 'xml')
-
-        # add data
-        type_tag = bs.new_tag("type")
-        type_tag.string = resource_type
-        
-        text_tag = bs.new_tag("text")
-        text_tag.string = text
-
-        label_tag = bs.new_tag("label")
-        label_tag.string = label
-
-        user_tag = bs.new_tag("user")
-        user_tag.string = user
-
-        filename_tag = bs.new_tag("filename")
-        filename_tag.string = filename
-
-        filehash_tag = bs.new_tag("filehash")
-        if filehash == None:
-            _, filehash = get_pdf_data_clean(filename)
-        filehash_tag.string = filehash
-        
-        signature = sign(label.encode() + text.encode() + filehash.encode()).hex()
-        signature_tag = bs.new_tag("signature")
-        signature_tag.string = signature
-        
-        # add subtags to msg tag
-        res_tag = bs.new_tag("resource")
-        res_tag.append(type_tag)
-        res_tag.append(text_tag)
-        res_tag.append(label_tag)
-        res_tag.append(user_tag)
-        res_tag.append(signature_tag)
-        res_tag.append(filename_tag)
-        res_tag.append(filehash_tag)
-        
-        # add msg tag to file
-        resources = bs.find("resources")
-        resources.append(res_tag)
-
-        ## TODO - add xml data encryption
-
-        with file_lock_resources:
-            with open('resources.xml', 'w') as f:
-                f.write(str(bs))
-    except Exception as e:
-        print("ERROR (add_resource):", e)
-        threadsafe_showinfo("Error (add_resource)!", e)
-
-# refresh hashes
-def refresh_resources():
-    try:
-        print("REFRESH")
-        with file_lock_resources:
-            with open('resources.xml', 'r') as f:
-                bs = BeautifulSoup(f, 'xml')
-
-        b_resources = bs.find_all("resource")
-
-        bs = BeautifulSoup("<resources></resources>", "xml")
-
-        for resource in b_resources:
-            file = resource.find('filename').text
-            _, hashed = get_pdf_data_clean(file)
-            if hashed == '':
-                resource.find('filename').string = ''
-                resource.find('filehash').string = ''
-            else:
-                resource.find('filehash').string = hashed
-
-            bs.find("resources").append(resource)
-
-        print(bs)
-
-        with file_lock_resources:
-            with open('resources.xml', 'w') as f:
-                f.write(str(bs))
-    except Exception as e:
-        print("ERROR (refresh_resources):", e)
-        threadsafe_showinfo("Error (refresh_resources)!", e)
 
 ####################
 ## MESSAGE HANDLING
