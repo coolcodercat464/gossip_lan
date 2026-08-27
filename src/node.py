@@ -65,24 +65,26 @@ dict_lock_resources_by_label = threading.Lock()
 dict_lock_resources_by_hash = threading.Lock()
 dict_lock_comments_by_hash = threading.Lock()
 
-all_servers = []
-servers = dict()
-all_socket_locks = dict()
-ciphers = dict()
+all_servers = [] # list of addresses
+servers = dict() # address -> socket
+all_socket_locks = dict() # address -> socket lock (threading.Lock())
+ciphers = dict() # address -> cipher object
 
-untrusted_keys = dict()
-trusted_keys = dict()
+untrusted_keys = dict() # address -> public key
+trusted_keys = dict() # address -> public key
 
-all_requests = []
-all_requests_comments = []
+all_requests = [] # list of requests: tuple(sender_public_key, hashed, time)
+all_requests_comments = [] # lists of requests for comments: tuple(sender_public_key, hashed, time)
 
-initiated_widgets = dict()
-untrusted_widgets = dict()
+initiated_widgets = dict() # address -> tkinter widget
+untrusted_widgets = dict() # address -> tkinter widget
 
-download_requests = dict()
-resources_by_label = dict()
-resources_by_hash = dict()
-comments_by_hash = dict()
+download_requests = dict() # address -> downloaded resource hash
+
+# from database_tools
+resources_by_label = dict() # data_by_label
+resources_by_hash = dict() # data_by_hash (resource only)
+comments_by_hash = dict() # data_by_hash (comments only)
 
 ####################
 ## AUTHENTICATION
@@ -294,13 +296,9 @@ def clientHandler(communication_socket, address):
                     # msg = 'message'.encode() + ':::'.encode() + channel.get().encode() + ':::'.encode() + cipher.encrypt(self_authentication_public_key_string) + ':::'.encode() + cipher.encrypt(text) + ':::'.encode() + time.encode() + ':::'.encode() + sign(text.encode() + time.encode())
 
                     channel = content.split(b':::')[0].decode()
-
                     sender_public_key = cipher.decrypt(content.split(b':::')[1])
-
                     text = cipher.decrypt(content.split(b':::')[2])
-                    
                     time = content.split(b':::')[3].decode()
-
                     signature = content.split(b':::')[4]
 
                     if verify(sender_public_key, signature, text.encode() + time.encode()):
@@ -328,15 +326,10 @@ def clientHandler(communication_socket, address):
                     # msg = 'query'.encode() + ':::'.encode() + cipher.encrypt(self_authentication_public_key_string) + ':::'.encode() + cipher.encrypt(self_ip_address) + ':::'.encode() + cipher.encrypt(label) + ':::'.encode() + time.encode() + ':::'.encode() + sign(label.encode() + time.encode())
 
                     sender_public_key = cipher.decrypt(content.split(b':::')[0])
-                    
                     sender_ip_address = cipher.decrypt(content.split(b':::')[1])
-                    
                     label = cipher.decrypt(content.split(b':::')[2])
-                    
                     time = content.split(b':::')[3].decode()
-                    
                     signature = content.split(b':::')[4]
-
                     trust_chain = content.split(b':::')[5:]
 
                     if verify(sender_public_key, signature, label.encode() + time.encode()):
