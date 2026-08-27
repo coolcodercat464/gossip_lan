@@ -14,7 +14,7 @@ file_lock_resources = threading.Lock() # for resources
 def read_connections():
     # thread safety
     with file_lock_connections:
-        with open('connections.xml') as f:
+        with open('../database/connections.xml') as f:
             data = f.read()
     
     Bs_data = BeautifulSoup(data, "xml")
@@ -26,7 +26,7 @@ def read_connections():
 # add an entry into connections.xml
 def add_connection(address, key):
     with file_lock_connections:
-        with open('connections.xml', 'r') as f:
+        with open('../database/connections.xml', 'r') as f:
             bs = BeautifulSoup(f, 'xml')
 
     # add data
@@ -46,14 +46,14 @@ def add_connection(address, key):
     connections.append(con_tag)
 
     with file_lock_connections:
-        with open('connections.xml', 'w') as f:
+        with open('../database/connections.xml', 'w') as f:
             f.write(str(bs))
 
 # remove an entry from connections.xml
 def remove_connection(address):
     # get data
     with file_lock_connections:
-        with open('connections.xml', 'r') as f:
+        with open('../database/connections.xml', 'r') as f:
             bs = BeautifulSoup(f, 'xml')
 
     # remove all entries from data
@@ -63,7 +63,7 @@ def remove_connection(address):
 
     # overwrite data
     with file_lock_connections:
-        with open('connections.xml', 'w') as f:
+        with open('../database/connections.xml', 'w') as f:
             f.write(str(bs))
 
 # reads the messages.xml file
@@ -71,7 +71,7 @@ def remove_connection(address):
 def read_messages():
     # thread safety
     with file_lock_messages:
-        with open('messages.xml') as f:
+        with open('../database/messages.xml') as f:
             data = f.read()
 
     Bs_data = BeautifulSoup(data, "xml")
@@ -89,7 +89,7 @@ def read_messages():
 def message_exists(text, user, channel, time):
     # thread safety
     with file_lock_messages:
-        with open('messages.xml') as f:
+        with open('../database/messages.xml') as f:
             data = f.read()
 
     Bs_data = BeautifulSoup(data, "xml")
@@ -116,7 +116,7 @@ def parse_user_key(user):
 # add an entry into messages.xml
 def add_message(user, text, channel, time):
     with file_lock_messages:
-        with open('messages.xml', 'r') as f:
+        with open('../database/messages.xml', 'r') as f:
             bs = BeautifulSoup(f, 'xml')
 
     # add data
@@ -144,13 +144,13 @@ def add_message(user, text, channel, time):
     messages.append(msg_tag)
   
     with file_lock_messages:
-        with open('messages.xml', 'w') as f:
+        with open('../database/messages.xml', 'w') as f:
             f.write(str(bs))
 
 # remove all messages from messages.xml
 def purge_messages():
     with file_lock_messages:
-        with open('messages.xml', 'w') as f:
+        with open('../database/messages.xml', 'w') as f:
             f.write('<messages><</messages>')
 
     show_messages()
@@ -160,7 +160,7 @@ def purge_messages():
 def read_resources(resource_type=''):
     # thread safety
     with file_lock_resources:
-        with open('resources.xml') as f:
+        with open('../database/resources.xml') as f:
             data = f.read()
 
     Bs_data = BeautifulSoup(data, "xml")
@@ -199,7 +199,7 @@ def read_resources(resource_type=''):
 # add an entry into resources.xml
 def add_resource(resource_type, text, label, user, private_key, filename='', filehash=None):
     with file_lock_resources:
-        with open('resources.xml', 'r') as f:
+        with open('../database/resources.xml', 'r') as f:
             bs = BeautifulSoup(f, 'xml')
 
     # add data
@@ -242,14 +242,14 @@ def add_resource(resource_type, text, label, user, private_key, filename='', fil
     resources.append(res_tag)
 
     with file_lock_resources:
-        with open('resources.xml', 'w') as f:
+        with open('../database/resources.xml', 'w') as f:
             f.write(str(bs))
 
 # refresh hashes
 def refresh_resources():
     print("REFRESH")
     with file_lock_resources:
-        with open('resources.xml', 'r') as f:
+        with open('../database/resources.xml', 'r') as f:
             bs = BeautifulSoup(f, 'xml')
 
     b_resources = bs.find_all("resource")
@@ -270,5 +270,5 @@ def refresh_resources():
         bs.find("resources").append(resource)
 
     with file_lock_resources:
-        with open('resources.xml', 'w') as f:
+        with open('../database/resources.xml', 'w') as f:
             f.write(str(bs))
