@@ -1,5 +1,19 @@
 import socket
 
+# get your own ip address
+def get_local_ip():
+    # create a socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    
+    # connect to google
+    s.connect(('8.8.8.8', 80))
+    
+    # get the local socket name
+    local_ip, port = s.getsockname()
+    s.close()
+    
+    return local_ip
+
 # send message + byte size
 def sendall(this_socket, content, dict_lock_socket_locks):
     # use threading locks to ensure that the socket isn't being used to send multiple things at the same time
