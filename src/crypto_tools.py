@@ -1,5 +1,25 @@
 from Cryptodome.Cipher import AES
+
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import hashes
+
+# sign challenge
+def sign(message, self_authentication_private_key):
+    return self_authentication_private_key.sign(message)
+
+# verify a signature
+def verify(public_key, signature, message):
+    # parse it
+    if type(public_key) == str:
+        public_key = serialization.load_ssh_public_key(public_key.strip().encode("utf-8"))
+
+    # verify signature
+    try:
+        public_key.verify(signature, message)
+        return True
+    except:
+        return False
 
 # aes gcm encryption class (copied from stack overflow lol)
 class GCM:
