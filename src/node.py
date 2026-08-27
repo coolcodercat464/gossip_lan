@@ -18,6 +18,7 @@ import hashlib
 
 # custom modules
 from pdf_tools import get_pdf_data_clean
+from crypto_tools import GCM
 
 # misc
 import datetime
@@ -43,38 +44,6 @@ original_print = builtins.print
 def custom_print(*args):
     with print_lock: original_print(*args)
 builtins.print = custom_print
-
-####################
-## CRYPTOGRAPHY
-####################
-
-# aes gcm encryption class
-class GCM:
-    def __init__(self, secretKey):
-        self.secretKey = secretKey
-
-    def encrypt(self, msg):
-        hkdf = HKDF(algorithm=hashes.SHA256(), length=32, salt=None)
-        aesKey = hkdf.derive(self.secretKey)
-                       
-        cipher = AES.new(aesKey, AES.MODE_GCM)
-        ciphertext, tag = cipher.encrypt_and_digest(msg.encode())
-        return cipher.nonce + ciphertext + tag
-
-    def decrypt(self, msg):
-        hkdf = HKDF(algorithm=hashes.SHA256(), length=32, salt=None)
-        aesKey = hkdf.derive(self.secretKey)
-                       
-        nonce = msg[:16]
-        tag = msg[-16:]
-        msg = msg[16:-16]
-
-        cipher = AES.new(aesKey, AES.MODE_GCM, nonce=nonce)
-        try:
-            return cipher.decrypt_and_verify(msg, tag).decode()
-        except ValueError:
-            print("Decryption failed: Key incorrect or message tampered with")
-            return False
 
 ####################
 ## AUTHENTICATION
