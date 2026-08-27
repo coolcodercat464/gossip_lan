@@ -15,8 +15,9 @@ import secrets
 
 import base64
 import hashlib
-from io import BytesIO
-import PyPDF2
+
+# custom modules
+from pdf_tools import get_pdf_data_clean
 
 # misc
 import datetime
@@ -42,32 +43,6 @@ original_print = builtins.print
 def custom_print(*args):
     with print_lock: original_print(*args)
 builtins.print = custom_print
-
-####################
-## FILES
-####################
-
-# get data of pdf with all metdata removed
-def clean_pdf(file_path):
-    if os.path.exists(file_path):
-        with open(file_path, 'rb') as file:
-            reader = PyPDF2.PdfReader(file)
-            writer = PyPDF2.PdfWriter()
-            
-            # Copy pages without metadata
-            for page in reader.pages:
-                writer.add_page(page)
-                
-            # Write to a bytes buffer
-            buffer = BytesIO()
-            writer.write(buffer)
-            buffer.seek(0)
-
-        data = buffer.read()
-        hashed = hashlib.sha256(data).hexdigest()
-        return data, hashed
-    else:
-        return '', ''
 
 ####################
 ## CRYPTOGRAPHY
@@ -754,7 +729,7 @@ def clientHandler(communication_socket, address):
                         
                         path = resource['filename']
                         print(path)
-                        file, hashed = clean_pdf(path)
+                        file, hashed = get_pdf_data_clean(path)
                         print(file, hashed)
 
                         # ensure file exists
@@ -779,7 +754,7 @@ def clientHandler(communication_socket, address):
                     with open(path, "wb") as f:
                         f.write(file)
 
-                    _, hashed = clean_pdf(path)
+                    _, hashed = get_pdf_data_clean(path)
 
                     threadsafe_showinfo("Download Successful!", "File at " + path + " with content hash " + hashed)
 
@@ -1356,7 +1331,7 @@ def add_resource(resource_type, text, label, user, filename='', filehash=None):
 
         filehash_tag = bs.new_tag("filehash")
         if filehash == None:
-            _, filehash = clean_pdf(filename)
+            _, filehash = get_pdf_data_clean(filename)
         filehash_tag.string = filehash
         
         signature = sign(label.encode() + text.encode() + filehash.encode()).hex()
@@ -1400,7 +1375,7 @@ def refresh_resources():
 
         for resource in b_resources:
             file = resource.find('filename').text
-            _, hashed = clean_pdf(file)
+            _, hashed = get_pdf_data_clean(file)
             if hashed == '':
                 resource.find('filename').string = ''
                 resource.find('filehash').string = ''
@@ -1833,7 +1808,7 @@ def recalculate_hash():
         threadsafe_showinfo("Error!", "Filename empty!")
         return
 
-    file, hashed = clean_pdf(filename)
+    file, hashed = get_pdf_data_clean(filename)
 
     filehash_entry.config(state=tk.NORMAL)
     filehash_entry.delete(0, tk.END)
