@@ -1,4 +1,2 @@
 <?xml version="1.0" encoding="utf-8"?>
-<messages><message><user>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKct5Js6f0uG9VP0K9YFUhluJib7mOOcqhnhVPnn/z51 aidan@debian
-</user><text>hello everybody</text><channel>general</channel><time>2026-08-18 20:06:04.976904</time></message><message><user>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKct5Js6f0uG9VP0K9YFUhluJib7mOOcqhnhVPnn/z51 aidan@debian
-</user><text>this is so bugggyyyy</text><channel>general</channel><time>2026-08-23 16:25:46.031440</time></message></messages>
+<messages></messages>
