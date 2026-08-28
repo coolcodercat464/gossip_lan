@@ -189,11 +189,11 @@ def clientHandler(communication_socket, address):
             # trusted
             trust_this_connection = True
             add_sender(address, client_authentication_public_key, True)
-            trusted_keys.set(address, client_authentication_public_key)
+            trusted_keys.set_pair(address, client_authentication_public_key)
         else:
             # untrusted
             add_sender(address, client_authentication_public_key, False)
-            untrusted_keys.set(address, client_authentication_public_key)
+            untrusted_keys.set_pair(address, client_authentication_public_key)
 
         encrypted = False
         # dh key exchange
@@ -611,7 +611,7 @@ def listen():
             print("CONNECTION DETECTED FROM:", address)
             print(dict_lock_socket_locks)
 
-            all_socket_locks.set(address, threading.Lock())
+            all_socket_locks.set_pair(address, threading.Lock())
 
             # make new thread for each client
             client = threading.Thread(target=clientHandler, args=(communication_socket, address,))
@@ -627,36 +627,37 @@ def listen():
 # remove socket from lists/dictionaries after connection is closed
 def cleanup(address):
     print("CLEANUP CONNECTION FOR", address)
-    if address in servers.get().keys():
-        servers.get()[address].close()
+    server_exists = servers.present(address)
+    if server_exists:
+        server_exists.close()
         servers.del(address)
     if all_servers.present(address):
         all_servers.remove(address)
-    with dict_lock_ciphers:
-        if address in ciphers.keys():
-            del ciphers[address]
+    if ciphers.present(address):
+        ciphers.del(address)
 
-    with dict_lock_untrusted_widgets:
-        if address in untrusted_widgets:
-            untrusted_widgets[address].config(bg='red')
-    with dict_lock_initiated_widgets:
-        if address in initiated_widgets:
-            initiated_widgets[address].config(bg='red')
-    print("SERVERS:", all_servers)
+    widget = untrusted_widgets.present(address)
+    if widget:
+        widget.config(bg='red')
+
+    widget = initiated_widgets.present(address)
+    if widget:
+        widget.config(bg='red')
 
 # remove widget from tkinter display
 def destroy_widget(address):
     try:
-        with list_lock_all_servers:
-            if address not in all_servers:
-                with dict_lock_untrusted_widgets:
-                    if address in untrusted_widgets:
-                        untrusted_widgets[address].master.destroy()
-                        del untrusted_widgets[address]
-                with dict_lock_initiated_widgets:
-                    if address in initiated_widgets:
-                        initiated_widgets[address].master.destroy()
-                        del initiated_widgets[address]
+        if not all_servers.present(address):
+            widget = untrusted_widgets.present(address)
+            if widget:
+                widget.master.destroy()
+                untrusted_widgets.del(address)
+        
+            widget = initiated_widgets.present(address)
+            if widget:
+                widget.master.destroy()
+                initiated_widgets.del(address)
+
     except Exception as e:
         print("ERROR (destroy_widget) FOR ADDRESS", address, ":", e)
         threadsafe_showinfo("Error (destroy_widget) for address " + address, e)
@@ -672,11 +673,10 @@ def toggle_trust(address):
             threadsafe_showinfo("Untrusted!", "This address has been removed from the trusted list (connections.xml).")
         else:
             # trust address
-            with dict_lock_untrusted_keys:
-                if address in untrusted_keys.keys():
-                    key = untrusted_keys[address]
-                    add_connection(address, key)
-                    threadsafe_showinfo("Trusted!", "This address has been added to the trusted list (connections.xml).")
+            key = untrusted_keys.present(address)
+            if key:
+                add_connection(address, key)
+                threadsafe_showinfo("Trusted!", "This address has been added to the trusted list (connections.xml).")
     except Exception as e:
         print("ERROR (toggle_trust) FOR ADDRESS", address, ":", e)
         threadsafe_showinfo("Error (toggle_trust) for address " + address, e)
@@ -701,27 +701,25 @@ def spawn_senders():
 def add_sender_gui(address, key, trusted):
     # gui stuff
     if trusted:
-        with dict_lock_initiated_widgets:
-            text = address + ' (' + parse_user_key(key) + ')'
-            
-            child = tk.Frame(trusted_list)
-            child.grid(padx=10, pady=10)
-            
-            widget = tk.Label(child, text=text, wraplength=100, bg='yellow')
-            widget.grid(row=0, column=0, rowspan=2)
-            
-            initiated_widgets[address] = widget
+        text = address + ' (' + parse_user_key(key) + ')'
+        
+        child = tk.Frame(trusted_list)
+        child.grid(padx=10, pady=10)
+        
+        widget = tk.Label(child, text=text, wraplength=100, bg='yellow')
+        widget.grid(row=0, column=0, rowspan=2)
+        
+        initiated_widgets.value[address] = widget
     else:
-        with dict_lock_untrusted_widgets:
-            text = address + ' (' + parse_user_key(key) + ')'
-            
-            child = tk.Frame(untrusted_list)
-            child.grid(padx=10, pady=10)
-            
-            widget = tk.Label(child, text=text, wraplength=100, bg='yellow')
-            widget.grid(row=0, column=0, rowspan=2)
-            
-            untrusted_widgets[address] = widget
+        text = address + ' (' + parse_user_key(key) + ')'
+        
+        child = tk.Frame(untrusted_list)
+        child.grid(padx=10, pady=10)
+        
+        widget = tk.Label(child, text=text, wraplength=100, bg='yellow')
+        widget.grid(row=0, column=0, rowspan=2)
+        
+        untrusted_widgets.value[address] = widget
     
     reset = tk.Button(child, text='R', command=lambda: add_sender(address, key, trusted))
     reset.grid(row=0, column=1)
@@ -743,9 +741,7 @@ def add_sender(address, key, trusted):
         print('ADDING SENDER TO ADDRESS:', address)
 
         continue_logic = False
-        with list_lock_all_servers:
-            if address not in all_servers:
-                continue_logic = True
+        continue_logic = not all_servers.present(address)
 
         if continue_logic:
             destroy_widget(address)
@@ -766,9 +762,7 @@ def add_sender_for_resource(response_type, address, key, trusted, resources_stri
         print('ADDING SENDER (FOR RESOURCE) TO ADDRESS:', address)
         
         continue_logic = False
-        with list_lock_all_servers:
-            if address not in all_servers:
-                continue_logic = True
+        continue_logic = not all_servers.present(address)
 
         if continue_logic:
             destroy_widget(address)
@@ -782,15 +776,11 @@ def add_sender_for_resource(response_type, address, key, trusted, resources_stri
             sendall(client_socket, msg)
         else:
             exists = False
-            with dict_lock_servers:
-                if address in servers.keys():
-                    client_socket = servers[address]
-                    
-                    with dict_lock_ciphers:
-                        if address in ciphers.keys():
-                            cipher = ciphers[address]
-
-                            exists = True
+            client_socket = servers.present(address)
+            if client_socket:
+                cipher = ciphers.present(address)
+                if cipher:
+                    exists = True
 
             if exists:
                 msg = response_type.encode() + ':::'.encode() + cipher.encrypt(resources_string) + ':::'.encode() + b':::'.join(trust_chain)
@@ -813,8 +803,7 @@ def create_sender(address, server_public_key, widget, trusted):
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.connect(server)
         
-        with dict_lock_socket_locks:
-            all_socket_locks[server] = threading.Lock()
+        all_socket_locks.value[server] = threading.Lock()
 
         # authenticate server
         print('---AUTHENTICATING WITH SERVER', address, '---')
@@ -865,18 +854,18 @@ def create_sender(address, server_public_key, widget, trusted):
 
         print('---COMPLETED HANDSHAKE WITH SERVER', address, '---')
         print(servers)
-        with dict_lock_servers:
-            servers[address] = client_socket
-        with dict_lock_ciphers:
-            ciphers[address] = cipher
+
+        servers.value[address] = client_socket
+        ciphers.value[address] = cipher
         if trusted:
-            with dict_lock_initiated_widgets:
-                if address in initiated_widgets:
-                    initiated_widgets[address].config(bg='green')
+            widget = initiated_widgets.present(address)
+            if widget:
+                widget.config(bg='green')
         else:
-            with dict_lock_untrusted_widgets:
-                if address in untrusted_widgets:
-                    untrusted_widgets[address].config(bg='green')
+            widget = untrusted_widgets.present(address)
+            if widget:
+                widget.config(bg='green')
+
         print(servers)
 
         return (client_socket, cipher)
@@ -937,15 +926,15 @@ def send_message():
         display = self_hostname + ': ' + text + '\n'
 
         print('---SENDING MESSAGE TO ALL SERVERS---')
-        with dict_lock_servers:
-            for address, client_socket in servers.items():
-                print('ADDRESS:', address)
+        
+        for address, client_socket in servers.get().items():
+            print('ADDRESS:', address)
 
-                # encrypt and sign message
-                cipher = ciphers[address]
+            # encrypt and sign message
+            cipher = ciphers.get()[address]
 
-                msg = 'message'.encode() + ':::'.encode() + channel.get().encode() + ':::'.encode() + cipher.encrypt(self_authentication_public_key_string) + ':::'.encode() + cipher.encrypt(text) + ':::'.encode() + time.encode() + ':::'.encode() + sign(text.encode() + time.encode())
-                sendall(client_socket, msg)
+            msg = 'message'.encode() + ':::'.encode() + channel.get().encode() + ':::'.encode() + cipher.encrypt(self_authentication_public_key_string) + ':::'.encode() + cipher.encrypt(text) + ':::'.encode() + time.encode() + ':::'.encode() + sign(text.encode() + time.encode())
+            sendall(client_socket, msg)
        
         update_listbox(display)
 
@@ -960,12 +949,6 @@ def send_message():
 
 # thread safety
 resources_listbox_lock = threading.Lock()
-
-list_resources_lock = threading.Lock()
-all_resources = []
-
-selected_listbox_item_lock = threading.Lock()
-selected_listbox_item = None
 
 # get information and add it to resources.xml
 def create_resource():
@@ -1025,32 +1008,30 @@ def query_resource():
             time = str(datetime.datetime.now())
             
             print('---SENDING QUERY TO ALL SERVERS---')
-            with dict_lock_servers:
-                for address, client_socket in servers.items():
-                    print('ADDRESS:', address)
+            for address, client_socket in servers.get().items():
+                print('ADDRESS:', address)
 
-                    # encrypt and sign message
-                    cipher = ciphers[address]
-                    self_ip_address = client_socket.getsockname()[0]
+                # encrypt and sign message
+                cipher = ciphers.get()[address]
+                self_ip_address = client_socket.getsockname()[0]
 
-                    msg = 'query_by_hash'.encode() + ':::'.encode() + cipher.encrypt(self_authentication_public_key_string) + ':::'.encode() + cipher.encrypt(self_ip_address) + ':::'.encode() + cipher.encrypt(hashed) + ':::'.encode() + time.encode() + ':::'.encode() + sign(hashed.encode())
-                    sendall(client_socket, msg)
+                msg = 'query_by_hash'.encode() + ':::'.encode() + cipher.encrypt(self_authentication_public_key_string) + ':::'.encode() + cipher.encrypt(self_ip_address) + ':::'.encode() + cipher.encrypt(hashed) + ':::'.encode() + time.encode() + ':::'.encode() + sign(hashed.encode())
+                sendall(client_socket, msg)
        
             threadsafe_showinfo("Query sent!", "Your query has been sent.")
         else:
             time = str(datetime.datetime.now())
             
             print('---SENDING QUERY TO ALL SERVERS---')
-            with dict_lock_servers:
-                for address, client_socket in servers.items():
-                    print('ADDRESS:', address)
+            for address, client_socket in servers.items():
+                print('ADDRESS:', address)
 
-                    # encrypt and sign message
-                    cipher = ciphers[address]
-                    self_ip_address = client_socket.getsockname()[0]
+                # encrypt and sign message
+                cipher = ciphers.get()[address]
+                self_ip_address = client_socket.getsockname()[0]
 
-                    msg = 'query'.encode() + ':::'.encode() + cipher.encrypt(self_authentication_public_key_string) + ':::'.encode() + cipher.encrypt(self_ip_address) + ':::'.encode() + cipher.encrypt(label) + ':::'.encode() + time.encode() + ':::'.encode() + sign(label.encode() + time.encode())
-                    sendall(client_socket, msg)
+                msg = 'query'.encode() + ':::'.encode() + cipher.encrypt(self_authentication_public_key_string) + ':::'.encode() + cipher.encrypt(self_ip_address) + ':::'.encode() + cipher.encrypt(label) + ':::'.encode() + time.encode() + ':::'.encode() + sign(label.encode() + time.encode())
+                sendall(client_socket, msg)
            
             threadsafe_showinfo("Query sent!", "Your query has been sent.")
     except Exception as e:
@@ -1069,33 +1050,30 @@ def query_comments():
         if label.strip() == '': 
             threadsafe_showinfo("Error!", "Label empty!")
             return
-        
-        with selected_listbox_item_lock:
-            if selected_listbox_item == None:
-                threadsafe_showinfo("None selected", "Please select a resource to find comments of")
-                return
 
-        with list_resources_lock:
-            commenting_to = all_resources[selected_listbox_item]
-            if commenting_to['label'] == label and commenting_to['text'] == text:
-                hashed = hashlib.sha256(commenting_to['label'].encode() + commenting_to['text'].encode()).hexdigest()
-            else:
-                threadsafe_showinfo("Resource modified", "Please don't modify the selected resource")
-                return
+        if selected_listbox_item.get() == None:
+            threadsafe_showinfo("None selected", "Please select a resource to find comments of")
+            return
+
+        commenting_to = all_resources.get()[selected_listbox_item]
+        if commenting_to['label'] == label and commenting_to['text'] == text:
+            hashed = hashlib.sha256(commenting_to['label'].encode() + commenting_to['text'].encode()).hexdigest()
+        else:
+            threadsafe_showinfo("Resource modified", "Please don't modify the selected resource")
+            return
         
         time = str(datetime.datetime.now())
         
         print('---SENDING QUERY TO ALL SERVERS---')
-        with dict_lock_servers:
-            for address, client_socket in servers.items():
-                print('ADDRESS:', address)
+        for address, client_socket in servers.get().items():
+            print('ADDRESS:', address)
 
-                # encrypt and sign message
-                cipher = ciphers[address]
-                self_ip_address = client_socket.getsockname()[0]
+            # encrypt and sign message
+            cipher = ciphers.get()[address]
+            self_ip_address = client_socket.getsockname()[0]
 
-                msg = 'query_comments'.encode() + ':::'.encode() + cipher.encrypt(self_authentication_public_key_string) + ':::'.encode() + cipher.encrypt(self_ip_address) + ':::'.encode() + cipher.encrypt(hashed) + ':::'.encode() + time.encode() + ':::'.encode() + sign(hashed.encode() + time.encode())
-                sendall(client_socket, msg)
+            msg = 'query_comments'.encode() + ':::'.encode() + cipher.encrypt(self_authentication_public_key_string) + ':::'.encode() + cipher.encrypt(self_ip_address) + ':::'.encode() + cipher.encrypt(hashed) + ':::'.encode() + time.encode() + ':::'.encode() + sign(hashed.encode() + time.encode())
+            sendall(client_socket, msg)
        
         threadsafe_showinfo("Query sent!", "Your query has been sent.")
     except Exception as e:
@@ -1129,17 +1107,16 @@ def select_resources_listbox():
                 filename_entry.delete(0, tk.END)
                 filehash_entry.delete(0, tk.END)
 
-                with list_resources_lock:
-                    selected = all_resources[selected_listbox_item]
-                    label_entry.insert(0, selected['label'])
-                    text_text.insert("1.0", selected['text'])
-                    
-                    filename_entry.insert(0, selected['filename'])
-                    filehash_entry.insert(0, selected['filehash'])
-                    filehash_entry.config(state="readonly")
-                    
-                    hash_entry.insert(0, hashlib.sha256(selected['label'].encode() + selected['text'].encode()).hexdigest())
-                    hash_entry.config(state="readonly")
+                selected = all_resources.get()[selected_listbox_item]
+                label_entry.insert(0, selected['label'])
+                text_text.insert("1.0", selected['text'])
+                
+                filename_entry.insert(0, selected['filename'])
+                filehash_entry.insert(0, selected['filehash'])
+                filehash_entry.config(state="readonly")
+                
+                hash_entry.insert(0, hashlib.sha256(selected['label'].encode() + selected['text'].encode()).hexdigest())
+                hash_entry.config(state="readonly")
                     
     except Exception as e:
         print("ERROR (select_resources_listbox):", e)
@@ -1162,8 +1139,7 @@ def unselect_resources_listbox():
     filename_entry.delete(0, tk.END)
     filehash_entry.delete(0, tk.END)
     
-    with selected_listbox_item_lock:
-        selected_listbox_item = None
+    selected_listbox_item.set(None)
 
     for i in range(resources_listbox.size()):
         resources_listbox.itemconfig(i, bg="white", selectbackground="grey")
@@ -1175,20 +1151,11 @@ def reset_resources_listbox():
     data, data_by_labels, data_by_hashes = read_resources()
     _, comment_hash, _ = read_resources(resource_type='comment')
 
-    with dict_lock_resources_by_label:
-        resources_by_label = dict(data_by_labels)
-
-    with dict_lock_resources_by_hash:
-        resources_by_hash = dict(data_by_hashes)
-
-    with dict_lock_comments_by_hash:
-        comments_by_hash = dict(comment_hash)
-
-    with list_resources_lock:
-        all_resources = list(data)
-
-    with selected_listbox_item_lock:
-        selected_listbox_item = None
+    resources_by_label.set(dict(data_by_labels))
+    resources_by_hash.set(dict(data_by_hashes))
+    comments_by_hash.set(dict(comment_hash))
+    all_resources.set(list(data))
+    selected_listbox_item.set(None)
     
     resources_listbox.delete(0, tk.END)
 
@@ -1206,14 +1173,12 @@ def insert_to_resources_listbox(item):
 
 def mirror_selected_resource():
     try:
-        with selected_listbox_item_lock:
-            with list_resources_lock:
-                try:
-                    assert selected_listbox_item != None
-                    mirroring = all_resources[selected_listbox_item]
-                except IndexError:
-                    threadsafe_showinfo("Index Error!", "Could not find selected resource")
-                    return
+        try:
+            assert selected_listbox_item.get() != None
+            mirroring = all_resources.get()[selected_listbox_item]
+        except IndexError:
+            threadsafe_showinfo("Index Error!", "Could not find selected resource")
+            return
         
         # attached file
         if mirroring['filename'] != '':
@@ -1235,32 +1200,27 @@ def mirror_selected_resource():
 # download file associated with resource
 def download_selected_resource():
     try:
-        with selected_listbox_item_lock:
-            with list_resources_lock:
-                try:
-                    assert selected_listbox_item != None
-                    downloading = all_resources[selected_listbox_item]
-                    downloading_hash = downloading['hash']
-                    downloading_ip = downloading['ip']
-                except IndexError:
-                    threadsafe_showinfo("Index Error!", "Could not find selected resource")
-                    return
+        try:
+            assert selected_listbox_item.get() != None
+            downloading = all_resources.get()[selected_listbox_item]
+            downloading_hash = downloading['hash']
+            downloading_ip = downloading['ip']
+        except IndexError:
+            threadsafe_showinfo("Index Error!", "Could not find selected resource")
+            return
 
-        with dict_lock_servers:
-            for address, client_socket in servers.items():
-                if address == downloading_ip:  
-                    # encrypt and sign message
-                    cipher = ciphers[address]
+        for address, client_socket in servers.get().items():
+            if address == downloading_ip:  
+                # encrypt and sign message
+                cipher = ciphers.get()[address]
 
-                    msg = 'download'.encode() + ':::'.encode() + cipher.encrypt(downloading_hash)
+                msg = 'download'.encode() + ':::'.encode() + cipher.encrypt(downloading_hash)
+                download_requests.set_pair(address, downloading_hash)
+                
+                sendall(client_socket, msg)
 
-                    with dict_lock_download_requests:
-                        download_requests[address] = downloading_hash
-                    
-                    sendall(client_socket, msg)
-   
-                    threadsafe_showinfo("Query sent!", "Your query has been sent.")
-                    return
+                threadsafe_showinfo("Query sent!", "Your query has been sent.")
+                return
         
     except Exception as e:
         print("ERROR (download_selected_resource):", e)
