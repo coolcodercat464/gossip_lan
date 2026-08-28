@@ -2,7 +2,7 @@ import threading
 
 # thread safe object (global variable, sharable state)
 class SafeSharedState:
-    def __init__(self):
+    def __init__(self, value):
         self.value = value
         self.tlock = threading.Lock()
 
@@ -75,3 +75,7 @@ download_requests = SafeDict() # address -> downloaded resource hash
 resources_by_label = SafeDict() # data_by_label
 resources_by_hash = SafeDict() # data_by_hash (resource only)
 comments_by_hash = SafeDict() # data_by_hash (comments only)
+
+# resources frontend
+all_resources = SafeList()
+selected_listbox_item = SafeSharedState(None)
