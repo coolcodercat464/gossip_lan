@@ -262,15 +262,14 @@ def clientHandler(communication_socket, address):
                             show_messages()
 
                             print('---SENDING MESSAGE TO ALL SERVERS---')
-                            with dict_lock_servers:
-                                for a, client_socket in servers.items():
-                                    print('ADDRESS:', a)
-                        
-                                    # encrypt and sign message
-                                    cipher2 = ciphers[a]
-                        
-                                    msg = 'message'.encode() + ':::'.encode() + channel.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(text) + ':::'.encode() + time.encode() + ':::'.encode() + signature
-                                    sendall(client_socket, msg)
+                            for a, client_socket in servers.get().items():
+                                print('ADDRESS:', a)
+                    
+                                # encrypt and sign message
+                                cipher2 = ciphers.get()[a]
+                    
+                                msg = 'message'.encode() + ':::'.encode() + channel.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(text) + ':::'.encode() + time.encode() + ':::'.encode() + signature
+                                sendall(client_socket, msg)
 
                     else:
                         raise Exception("Signature invalid")
@@ -288,57 +287,57 @@ def clientHandler(communication_socket, address):
 
                     if verify(sender_public_key, signature, label.encode() + time.encode()):
                         # prevent duplicates from blowing up
-                        with list_lock_all_requests:
-                            if (sender_public_key, label, time) not in all_requests:
-                                all_requests.append((sender_public_key, label, time))
+                        if not all_requests.present((sender_public_key, label, time)):
+                            all_requests.append((sender_public_key, label, time))
 
-                                # check if you have resource
-                                with dict_lock_resources_by_label:
-                                    data_by_label = dict(resources_by_label)
+                            # check if you have resource
+                            data_by_label = dict(resources_by_label.get())
+                            resources_found = []
+                            for l in data_by_label.keys():
+                                if label in l:
+                                    for r in data_by_label[l]:
+                                        resources_found.append(r)
 
-                                resources_found = []
-                                for l in data_by_label.keys():
-                                    if label in l:
-                                        for r in data_by_label[l]:
-                                            resources_found.append(r)
+                            # if resources are found...
+                            if len(resources_found) > 0:
+                                resources_string = json.dumps(resources_found)
 
-                                if len(resources_found) > 0:
-                                    resources_string = json.dumps(resources_found)
+                                t = threading.Thread(target=add_sender_for_resource, args=('response', sender_ip_address, sender_public_key, False, resources_string, trust_chain))
+                                t.start()
 
-                                    t = threading.Thread(target=add_sender_for_resource, args=('response', sender_ip_address, sender_public_key, False, resources_string, trust_chain))
-                                    t.start()
+                            # gossip protocol
+                            print('---SENDING MESSAGE TO ALL SERVERS---')
+                            for a, client_socket in servers.get().items():
+                                # prevent it from mirroring back to the sender
+                                if a != address:
+                                    print('ADDRESS:', a)
 
-                                print('---SENDING MESSAGE TO ALL SERVERS---')
-                                with dict_lock_servers:
-                                    for a, client_socket in servers.items():
-                                        if a != address:
-                                            print('ADDRESS:', a)
+                                    trust = ''
 
-                                            trust = ''
-                                            with dict_lock_untrusted_keys:
-                                                if a in untrusted_keys.keys():
-                                                    trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
-                                                    trust_sig = sign(trust)
-                                                    trust += '   '.encode()
-                                                    trust += trust_sig
+                                    # client is untrusted
+                                    if a in untrusted_keys.get().keys():
+                                        trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys.get()[a].encode()
+                                        trust_sig = sign(trust)
+                                        trust += '   '.encode()
+                                        trust += trust_sig
 
-                                            if trust == '':
-                                                with dict_lock_trusted_keys:
-                                                    if a in trusted_keys.keys():
-                                                        trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
-                                                        trust_sig = sign(trust)
-                                                        trust += '   '.encode()
-                                                        trust += trust_sig
+                                    # client is trusted
+                                    if a in trusted_keys.get().keys():
+                                        trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys.get()[a].encode()
+                                        trust_sig = sign(trust)
+                                        trust += '   '.encode()
+                                        trust += trust_sig
 
-                                            if trust != '':
-                                                new_trust_chain = trust_chain + [trust]
-                                                new_trust_chain = b':::'.join(new_trust_chain)
-                                
-                                                # encrypt and sign message
-                                                cipher2 = ciphers[a]
+                                    # add to the trust chain
+                                    if trust != '':
+                                        new_trust_chain = trust_chain + [trust]
+                                        new_trust_chain = b':::'.join(new_trust_chain)
+                        
+                                        # encrypt and sign message
+                                        cipher2 = ciphers.get()[a]
 
-                                                msg = 'query'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(label) + ':::'.encode() + time.encode() + ':::'.encode() + signature + ':::'.encode() + new_trust_chain
-                                                sendall(client_socket, msg)
+                                        msg = 'query'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(label) + ':::'.encode() + time.encode() + ':::'.encode() + signature + ':::'.encode() + new_trust_chain
+                                        sendall(client_socket, msg)
                     else:
                         raise Exception("Signature invalid")
 
@@ -347,129 +346,111 @@ def clientHandler(communication_socket, address):
                     # msg = 'query_by_hash'.encode() + ':::'.encode() + cipher.encrypt(self_authentication_public_key_string) + ':::'.encode() + cipher.encrypt(self_ip_address) + ':::'.encode() + cipher.encrypt(hashed) + ':::'.encode() + time.encode() + ':::'.encode() + sign(hashed.encode())
 
                     sender_public_key = cipher.decrypt(content.split(b':::')[0])
-                    
                     sender_ip_address = cipher.decrypt(content.split(b':::')[1])
-
                     hashed = cipher.decrypt(content.split(b':::')[2])
-                    
-                    time = content.split(b':::')[3].decode()
-                    
+                    time = content.split(b':::')[3].decode()    
                     signature = content.split(b':::')[4]
-
                     trust_chain = content.split(b':::')[5:]
 
                     if verify(sender_public_key, signature, hashed.encode()):
                         # prevent duplicates from blowing up
-                        with list_lock_all_requests:
-                            if (sender_public_key, hashed, time) not in all_requests:
-                                all_requests.append((sender_public_key, hashed, time))
+                        if not all_requests.present((sender_public_key, label, time)):
+                            all_requests.append((sender_public_key, hashed, time))
 
-                                # check if you have resource
-                                with dict_lock_resources_by_hash:
-                                    data_by_hash = dict(resources_by_hash)
+                            # check if you have resource
+                            data_by_hash = dict(resources_by_hash.get())
 
-                                if hashed in data_by_hash.keys():
-                                    resources_found = data_by_hash[hashed]
-                                    resources_string = json.dumps(resources_found)
+                            if hashed in data_by_hash.keys():
+                                resources_found = data_by_hash[hashed]
+                                resources_string = json.dumps(resources_found)
 
-                                    t = threading.Thread(target=add_sender_for_resource, args=('response', sender_ip_address, sender_public_key, False, resources_string, trust_chain))
-                                    t.start()
+                                t = threading.Thread(target=add_sender_for_resource, args=('response', sender_ip_address, sender_public_key, False, resources_string, trust_chain))
+                                t.start()
 
-                                print('---SENDING MESSAGE TO ALL SERVERS---')
-                                with dict_lock_servers:
-                                    for a, client_socket in servers.items():
-                                        if a != address:
-                                            print('ADDRESS:', a)
+                            # gossip protocol
+                            print('---SENDING MESSAGE TO ALL SERVERS---')
+                            for a, client_socket in servers.get().items():
+                                if a != address:
+                                    print('ADDRESS:', a)
 
-                                            trust = ''
-                                            with dict_lock_untrusted_keys:
-                                                if a in untrusted_keys.keys():
-                                                    trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
-                                                    trust_sig = sign(trust)
-                                                    trust += '   '.encode()
-                                                    trust += trust_sig
+                                    trust = ''
+                                    
+                                    if a in untrusted_keys.get().keys():
+                                        trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys.get()[a].encode()
+                                        trust_sig = sign(trust)
+                                        trust += '   '.encode()
+                                        trust += trust_sig
 
-                                            if trust == '':
-                                                with dict_lock_trusted_keys:
-                                                    if a in trusted_keys.keys():
-                                                        trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
-                                                        trust_sig = sign(trust)
-                                                        trust += '   '.encode()
-                                                        trust += trust_sig
+                                    if a in trusted_keys.get().keys():
+                                        trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys.get()[a].encode()
+                                        trust_sig = sign(trust)
+                                        trust += '   '.encode()
+                                        trust += trust_sig
 
-                                            if trust != '':
-                                                new_trust_chain = trust_chain + [trust]
-                                                new_trust_chain = b':::'.join(new_trust_chain)
-                                
-                                                # encrypt and sign message
-                                                cipher2 = ciphers[a]
+                                    if trust != '':
+                                        new_trust_chain = trust_chain + [trust]
+                                        new_trust_chain = b':::'.join(new_trust_chain)
+                        
+                                        # encrypt and sign message
+                                        cipher2 = ciphers.get()[a]
 
-                                                msg = 'query_by_hash'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(hashed) + ':::'.encode() + time.encode() + ':::'.encode() + signature + ':::'.encode() + new_trust_chain
-                                                sendall(client_socket, msg)
+                                        msg = 'query_by_hash'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(hashed) + ':::'.encode() + time.encode() + ':::'.encode() + signature + ':::'.encode() + new_trust_chain
+                                        sendall(client_socket, msg)
                     else:
                         raise Exception("Signature invalid")
                         
                 # comments query
                 elif command == b'query_comments':
                     sender_public_key = cipher.decrypt(content.split(b':::')[0])
-                    
                     sender_ip_address = cipher.decrypt(content.split(b':::')[1])
-
                     resource_hash = cipher.decrypt(content.split(b':::')[2])
-                    
                     time = content.split(b':::')[3].decode()
-                    
                     signature = content.split(b':::')[4]
-
                     trust_chain = content.split(b':::')[5:]
 
                     if verify(sender_public_key, signature, resource_hash.encode() + time.encode()):
                         # prevent duplicates from blowing up
-                        with list_lock_all_requests_comments:
-                            if (sender_public_key, resource_hash, time) not in all_requests_comments:
-                                all_requests_comments.append((sender_public_key, resource_hash, time))
+                        if not all_requests.present((sender_public_key, label, time)):
+                            all_requests_comments.append((sender_public_key, resource_hash, time))
 
-                                # check if you have resource
-                                with dict_lock_comments_by_hash:
-                                    data_by_hash = dict(comments_by_hash)
+                            # check if you have resource
+                            with dict_lock_comments_by_hash:
+                                data_by_hash = dict(comments_by_hash)
 
-                                if resource_hash in data_by_hash.keys():
-                                    comments_string = json.dumps(data_by_hash[resource_hash])
+                            if resource_hash in data_by_hash.keys():
+                                comments_string = json.dumps(data_by_hash[resource_hash])
 
-                                    t = threading.Thread(target=add_sender_for_resource, args=('response_comment', sender_ip_address, sender_public_key, False, comments_string, trust_chain))
-                                    t.start()
+                                t = threading.Thread(target=add_sender_for_resource, args=('response_comment', sender_ip_address, sender_public_key, False, comments_string, trust_chain))
+                                t.start()
 
-                                print('---SENDING MESSAGE TO ALL SERVERS---')
-                                with dict_lock_servers:
-                                    for a, client_socket in servers.items():
-                                        if a != address:
-                                            print('ADDRESS:', a)
+                            print('---SENDING MESSAGE TO ALL SERVERS---')
+                            with dict_lock_servers:
+                                for a, client_socket in servers.items():
+                                    if a != address:
+                                        print('ADDRESS:', a)
 
-                                            trust = ''
-                                            with dict_lock_untrusted_keys:
-                                                if a in untrusted_keys.keys():
-                                                    trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + untrusted_keys[a].encode()
-                                                    trust_sig = sign(trust)
-                                                    trust += '   '.encode()
-                                                    trust += trust_sig
+                                        trust = ''
+                                        if a in untrusted_keys.get().keys():
+                                            trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + untrusted_keys.get()[a].encode()
+                                            trust_sig = sign(trust)
+                                            trust += '   '.encode()
+                                            trust += trust_sig
 
-                                            if trust == '':
-                                                with dict_lock_trusted_keys:
-                                                    if a in trusted_keys.keys():
-                                                        trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys[a].encode()
-                                                        trust_sig = sign(trust)
-                                                        trust += '   '.encode()
-                                                        trust += trust_sig
+                                        if a in trusted_keys.get().keys():
+                                            trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys.get()[a].encode()
+                                            trust_sig = sign(trust)
+                                            trust += '   '.encode()
+                                            trust += trust_sig
 
-                                            if trust != '':
-                                                new_trust_chain = trust_chain + [trust]
-                                                new_trust_chain = b':::'.join(new_trust_chain)
-                                
-                                                # encrypt and sign message
-                                                cipher2 = ciphers[a]
+                                        if trust != '':
+                                            new_trust_chain = trust_chain + [trust]
+                                            new_trust_chain = b':::'.join(new_trust_chain)
+                            
+                                            # encrypt and sign message
+                                            cipher2 = ciphers.get()[a]
 
-                                                msg = 'query_comments'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(resource_hash) + ':::'.encode() + time.encode() + ':::'.encode() + signature + ':::'.encode() + new_trust_chain
-                                                sendall(client_socket, msg)
+                                            msg = 'query_comments'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(resource_hash) + ':::'.encode() + time.encode() + ':::'.encode() + signature + ':::'.encode() + new_trust_chain
+                                            sendall(client_socket, msg)
                     else:
                         raise Exception("Signature invalid")
                         
@@ -488,9 +469,13 @@ def clientHandler(communication_socket, address):
                     else:
                         transitive_trust_valid = "UNTRUSTED"
                         transitive_trust_hops = 1
+
+                        # follow the transitive trust chain
                         if len(trust_chain[0]) > 1:
                             transitive_trust_valid = "TRUSTED"
                             this_key = None
+
+                            # verify every link
                             for link in trust_chain:
                                 transitive_trust_hops += 1
                                 trust, time, current_key, next_key, signature = link.split(b'   ')
@@ -504,17 +489,16 @@ def clientHandler(communication_socket, address):
                                     if trust != b'TRUSTED': transitive_trust_valid = "UNTRUSTED"
                                 else:
                                     raise Exception("Signature invalid (invalid trust chain)")
-                    
-                    with list_resources_lock:
-                        for resource in resources_obj:
-                            resource_pub_key = resource['user'].strip()
-                            signature = bytes.fromhex(resource['signature'].strip())
-                            if verify(resource_pub_key, signature, resource['label'].encode() + resource['text'].encode() + resource['filehash'].encode()):
-                                all_resources.append(resource)
-                                item = 'QUERY RESPONSE (' + transitive_trust_valid + ' over ' + str(transitive_trust_hops) + ' hop FROM ' + parse_user_key(client_authentication_public_key) + '): ' + resource['label'] + ' (' + parse_user_key(resource['user']) + ')'
-                                insert_to_resources_listbox(item)
-                            else:
-                                raise Exception("Signature invalid")
+
+                    for resource in resources_obj:
+                        resource_pub_key = resource['user'].strip()
+                        signature = bytes.fromhex(resource['signature'].strip())
+                        if verify(resource_pub_key, signature, resource['label'].encode() + resource['text'].encode() + resource['filehash'].encode()):
+                            all_resources.append(resource)
+                            item = 'QUERY RESPONSE (' + transitive_trust_valid + ' over ' + str(transitive_trust_hops) + ' hop FROM ' + parse_user_key(client_authentication_public_key) + '): ' + resource['label'] + ' (' + parse_user_key(resource['user']) + ')'
+                            insert_to_resources_listbox(item)
+                        else:
+                            raise Exception("Signature invalid")
 
                 # get response from comment query
                 elif command == b'response_comment':
@@ -546,17 +530,16 @@ def clientHandler(communication_socket, address):
                                     if trust != b'TRUSTED': transitive_trust_valid = "UNTRUSTED"
                                 else:
                                     raise Exception("Signature invalid (invalid trust chain)")
-                    
-                    with list_resources_lock:
-                        for comment in comments_obj:
-                            comment_pub_key = comment['user']
-                            signature = bytes.fromhex(comment['signature'])
-                            if verify(comment_pub_key, signature, comment['label'].encode() + comment['text'].encode() + comment['filehash'].encode()):
-                                all_resources.append(comment)
-                                item = 'COMMENT QUERY RESPONSE (' + transitive_trust_valid + ' over ' + str(transitive_trust_hops) + ' hop FROM ' + parse_user_key(client_authentication_public_key) + '): ' + comment['label'] + ' (' + parse_user_key(comment['user']) + ')'
-                                insert_to_resources_listbox(item)
-                            else:
-                                raise Exception("Signature invalid")
+
+                    for comment in comments_obj:
+                        comment_pub_key = comment['user']
+                        signature = bytes.fromhex(comment['signature'])
+                        if verify(comment_pub_key, signature, comment['label'].encode() + comment['text'].encode() + comment['filehash'].encode()):
+                            all_resources.append(comment)
+                            item = 'COMMENT QUERY RESPONSE (' + transitive_trust_valid + ' over ' + str(transitive_trust_hops) + ' hop FROM ' + parse_user_key(client_authentication_public_key) + '): ' + comment['label'] + ' (' + parse_user_key(comment['user']) + ')'
+                            insert_to_resources_listbox(item)
+                        else:
+                            raise Exception("Signature invalid")
 
                 # request to send a file over
                 elif command == b'download':
@@ -566,33 +549,29 @@ def clientHandler(communication_socket, address):
                     print(resource_hash)
 
                     # check if you have resource
-                    with dict_lock_resources_by_hash:
-                        data_by_hash = dict(resources_by_hash)
+                    data_by_hash = dict(resources_by_hash.get())
 
                     if resource_hash in data_by_hash.keys():
                         resource = data_by_hash[resource_hash][0]
                         
                         path = resource['filename']
-                        print(path)
                         file, hashed = get_pdf_data_clean(path)
-                        print(file, hashed)
 
                         # ensure file exists
                         if hashed != '':
-                            with dict_lock_servers:
-                                for a, client_socket in servers.items():
-                                    if a == communication_socket.getpeername()[0]:
-                                        cipher2 = ciphers[a]
-                                        sendall(client_socket, 'download_response:::'.encode() + file)
+                            # find the client and send it
+                            for a, client_socket in servers.get().items():
+                                if a == communication_socket.getpeername()[0]:
+                                    cipher2 = ciphers.get()[a]
+                                    sendall(client_socket, 'download_response:::'.encode() + file)
 
                 # get response from download request
                 elif command == b'download_response':
                     file = content
                     hashed = hashlib.sha256(content).hexdigest()
 
-                    with dict_lock_download_requests:
-                        hashed = download_requests[address]
-                        del download_requests[address]
+                    hashed = download_requests.get()[address]
+                    download_requests.del(address)
 
                     path = filename_entry.get()
                     
@@ -632,8 +611,7 @@ def listen():
             print("CONNECTION DETECTED FROM:", address)
             print(dict_lock_socket_locks)
 
-            with dict_lock_socket_locks:
-                all_socket_locks[address] = threading.Lock()
+            all_socket_locks.set(address, threading.Lock())
 
             # make new thread for each client
             client = threading.Thread(target=clientHandler, args=(communication_socket, address,))
@@ -649,13 +627,11 @@ def listen():
 # remove socket from lists/dictionaries after connection is closed
 def cleanup(address):
     print("CLEANUP CONNECTION FOR", address)
-    with dict_lock_servers:
-        if address in servers.keys():
-            servers[address].close()
-            del servers[address]
-    with list_lock_all_servers:
-        if address in all_servers:
-            all_servers.remove(address)
+    if address in servers.get().keys():
+        servers.get()[address].close()
+        servers.del(address)
+    if all_servers.present(address):
+        all_servers.remove(address)
     with dict_lock_ciphers:
         if address in ciphers.keys():
             del ciphers[address]
