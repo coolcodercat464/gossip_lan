@@ -15,11 +15,10 @@ def get_local_ip():
     return local_ip
 
 # send message + byte size
-def sendall(this_socket, content, all_socket_locks, dict_lock_socket_locks):
+def sendall(this_socket, content, all_socket_locks):
     # use threading locks to ensure that the socket isn't being used to send multiple things at the same time
     address = this_socket.getpeername()
-    with dict_lock_socket_locks:
-        this_socket_lock = all_socket_locks[address]
+    this_socket_lock = all_socket_locks[address]
     
     with this_socket_lock:
         print("---Sending Information---")
@@ -31,11 +30,10 @@ def sendall(this_socket, content, all_socket_locks, dict_lock_socket_locks):
         this_socket.sendall(msg.encode() + content)
 
 # receive all (no matter byte size)
-def recvall(this_socket, all_socket_locks, dict_lock_socket_locks, chunk_size=1024):
+def recvall(this_socket, all_socket_locks, chunk_size=1024):
     # use threading locks to ensure that the socket isn't being used to receive multiple things at the same time
     address = this_socket.getpeername()
-    with dict_lock_socket_locks:
-        this_socket_lock = all_socket_locks[address]
+    this_socket_lock = all_socket_locks[address]
 
     with this_socket_lock:
         print("---Waiting for Message---")
