@@ -42,7 +42,7 @@ class SafeDict(SafeSharedState):
     def __init__(self, value=dict()):
         super().__init__(value)
 
-    def set(self, key, value):
+    def set_pair(self, key, value):
         with self.tlock:
             self.value[key] = value
 
