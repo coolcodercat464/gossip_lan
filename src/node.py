@@ -89,10 +89,10 @@ builtins.print = custom_print
 
 # sendall/recvall functions with dict_lock_socket_locks and all_socket_locks
 def sendall(this_socket, content):
-    return socket_tools.sendall(this_socket, content, all_socket_locks)
+    return socket_tools.sendall(this_socket, content, all_socket_locks.get())
 
 def recvall(this_socket, chunksize=1024):
-    return socket_tools.recvall(this_socket, all_socket_locks, chunksize)
+    return socket_tools.recvall(this_socket, all_socket_locks.get(), chunksize)
 
 # signature function
 def sign(message): 
@@ -189,13 +189,11 @@ def clientHandler(communication_socket, address):
             # trusted
             trust_this_connection = True
             add_sender(address, client_authentication_public_key, True)
-            with dict_lock_trusted_keys:
-                trusted_keys[address] = client_authentication_public_key
+            trusted_keys.set(address, client_authentication_public_key)
         else:
             # untrusted
             add_sender(address, client_authentication_public_key, False)
-            with dict_lock_untrusted_keys:
-                untrusted_keys[address] = client_authentication_public_key
+            untrusted_keys.set(address, client_authentication_public_key)
 
         encrypted = False
         # dh key exchange
