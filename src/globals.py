@@ -50,6 +50,11 @@ class SafeDict(SafeSharedState):
         with self.tlock:
             del self.value[key]
 
+    def present(self, key):
+        with self.tlock:
+            if key in self.value.keys():
+                return self.value[key]
+
 all_servers = SafeList() # list of addresses
 servers = SafeDict() # address -> socket
 all_socket_locks = SafeDict() # address -> socket lock (threading.Lock())
