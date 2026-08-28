@@ -1,42 +1,56 @@
-# list of all server sockets
-list_lock_all_servers = threading.Lock()
-dict_lock_servers = threading.Lock()
-dict_lock_socket_locks = threading.Lock()
-dict_lock_ciphers = threading.Lock()
-
-dict_lock_untrusted_keys = threading.Lock()
-dict_lock_trusted_keys = threading.Lock()
-
 import threading
 
-list_lock_all_requests = threading.Lock()
-list_lock_all_requests_comments = threading.Lock()
+# thread safe object (global variable, sharable state)
+class SafeSharedState:
+    def __init__(self):
+        self.value = value
+        self.tlock = threading.Lock()
 
-dict_lock_initiated_widgets = threading.Lock()
-dict_lock_untrusted_widgets = threading.Lock()
+    def get(self):
+        with self.tlock:
+            return self.value
 
-dict_lock_download_requests = threading.Lock()
-dict_lock_resources_by_label = threading.Lock()
-dict_lock_resources_by_hash = threading.Lock()
-dict_lock_comments_by_hash = threading.Lock()
+    def get_no_lock(self):
+        return self.value
 
-all_servers = [] # list of addresses
-servers = dict() # address -> socket
-all_socket_locks = dict() # address -> socket lock (threading.Lock())
-ciphers = dict() # address -> cipher object
+    def set(self, value):
+        with self.tlock:
+            self.value = value
+    
+    def lock(self):
+        return self.tlock
 
-untrusted_keys = dict() # address -> public key
-trusted_keys = dict() # address -> public key
+# thread safe list (global variable, sharable state)
+class SafeList(SafeSharedState):
+    def __init__(self, value=[]):
+        super().__init__(value)
 
-all_requests = [] # list of requests: tuple(sender_public_key, hashed, time)
-all_requests_comments = [] # lists of requests for comments: tuple(sender_public_key, hashed, time)
+    def append(self, item):
+        with self.tlock:
+            self.value.append(item)
 
-initiated_widgets = dict() # address -> tkinter widget
-untrusted_widgets = dict() # address -> tkinter widget
+# thread safe dict (global variable, sharable state)
+class SafeDict(SafeSharedState):
+    def __init__(self, value=dict()):
+        super().__init__(value)
 
-download_requests = dict() # address -> downloaded resource hash
+all_servers = SafeList() # list of addresses
+servers = SafeDict() # address -> socket
+all_socket_locks = SafeDict() # address -> socket lock (threading.Lock())
+ciphers = SafeDict() # address -> cipher object
+
+untrusted_keys = SafeDict() # address -> public key
+trusted_keys = SafeDict() # address -> public key
+
+all_requests = SafeList() # list of requests: tuple(sender_public_key, hashed, time)
+all_requests_comments = SafeList() # lists of requests for comments: tuple(sender_public_key, hashed, time)
+
+initiated_widgets = SafeDict() # address -> tkinter widget
+untrusted_widgets = SafeDict() # address -> tkinter widget
+
+download_requests = SafeDict() # address -> downloaded resource hash
 
 # from database_tools
-resources_by_label = dict() # data_by_label
-resources_by_hash = dict() # data_by_hash (resource only)
-comments_by_hash = dict() # data_by_hash (comments only)
+resources_by_label = SafeDict() # data_by_label
+resources_by_hash = SafeDict() # data_by_hash (resource only)
+comments_by_hash = SafeDict() # data_by_hash (comments only)
