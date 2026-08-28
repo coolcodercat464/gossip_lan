@@ -29,6 +29,14 @@ class SafeList(SafeSharedState):
         with self.tlock:
             self.value.append(item)
 
+    def remove(self, item):
+        with self.tlock:
+            self.value.remove(item)
+
+    def present(self, item):
+        with self.tlock:
+            return item in self.value
+
 # thread safe dict (global variable, sharable state)
 class SafeDict(SafeSharedState):
     def __init__(self, value=dict()):
@@ -37,6 +45,10 @@ class SafeDict(SafeSharedState):
     def set(self, key, value):
         with self.tlock:
             self.value[key] = value
+
+    def del(self, key):
+        with self.tlock:
+            del self.value[key]
 
 all_servers = SafeList() # list of addresses
 servers = SafeDict() # address -> socket
