@@ -34,6 +34,10 @@ class SafeDict(SafeSharedState):
     def __init__(self, value=dict()):
         super().__init__(value)
 
+    def set(self, key, value):
+        with self.tlock:
+            self.value[key] = value
+
 all_servers = SafeList() # list of addresses
 servers = SafeDict() # address -> socket
 all_socket_locks = SafeDict() # address -> socket lock (threading.Lock())
