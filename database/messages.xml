@@ -1,1 +1,4 @@
-<messages></messages>
+<?xml version="1.0" encoding="utf-8"?>
+<messages><message><user>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG8PEGLNxMKwyzL88OdUSh7wPRz/2Mnr87j2USmPjpJ2 aidan@debian
+</user><text>hello!</text><channel>general</channel><time>2026-09-22 17:37:17.744103</time></message><message><user>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIlzSx6yVopRKg6iIHSJkdIoHQrJQNAcHEGq7cCKE09g panda@archlinux
+</user><text>yipee!</text><channel>general</channel><time>2026-09-22 17:37:24.553409</time></message></messages>

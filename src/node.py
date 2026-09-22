@@ -424,7 +424,7 @@ def clientHandler(communication_socket, address):
 
                             print('---SENDING MESSAGE TO ALL SERVERS---')
                             with globies.dict_lock_servers:
-                                for a, client_socket in globies.servers.items():
+                                for a, client_socket in globies.servers.get().items():
                                     if a != address:
                                         print('ADDRESS:', a)
 
@@ -1019,7 +1019,7 @@ def query_resource():
             time = str(datetime.datetime.now())
             
             print('---SENDING QUERY TO ALL SERVERS---')
-            for address, client_socket in globies.servers.items():
+            for address, client_socket in globies.servers.get().items():
                 print('ADDRESS:', address)
 
                 # encrypt and sign message
