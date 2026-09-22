@@ -21,7 +21,7 @@ from pdf_tools import get_pdf_data_clean
 from crypto_tools import GCM, verify
 from socket_tools import get_local_ip
 from database_tools import *
-from globals_file import *
+import globals_file as globies
 
 import socket_tools
 import crypto_tools
@@ -89,10 +89,10 @@ builtins.print = custom_print
 
 # sendall/recvall functions with dict_lock_socket_locks and all_socket_locks
 def sendall(this_socket, content):
-    return socket_tools.sendall(this_socket, content, all_socket_locks.get())
+    return socket_tools.sendall(this_socket, content, globies.all_socket_locks.get())
 
 def recvall(this_socket, chunksize=1024):
-    return socket_tools.recvall(this_socket, all_socket_locks.get(), chunksize)
+    return socket_tools.recvall(this_socket, globies.all_socket_locks.get(), chunksize)
 
 # signature function
 def sign(message): 
@@ -189,11 +189,11 @@ def clientHandler(communication_socket, address):
             # trusted
             trust_this_connection = True
             add_sender(address, client_authentication_public_key, True)
-            trusted_keys.set_pair(address, client_authentication_public_key)
+            globies.trusted_keys.set_pair(address, client_authentication_public_key)
         else:
             # untrusted
             add_sender(address, client_authentication_public_key, False)
-            untrusted_keys.set_pair(address, client_authentication_public_key)
+            globies.untrusted_keys.set_pair(address, client_authentication_public_key)
 
         encrypted = False
         # dh key exchange
@@ -262,11 +262,11 @@ def clientHandler(communication_socket, address):
                             show_messages()
 
                             print('---SENDING MESSAGE TO ALL SERVERS---')
-                            for a, client_socket in servers.get().items():
+                            for a, client_socket in globies.servers.get().items():
                                 print('ADDRESS:', a)
                     
                                 # encrypt and sign message
-                                cipher2 = ciphers.get()[a]
+                                cipher2 = globies.ciphers.get()[a]
                     
                                 msg = 'message'.encode() + ':::'.encode() + channel.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(text) + ':::'.encode() + time.encode() + ':::'.encode() + signature
                                 sendall(client_socket, msg)
@@ -287,11 +287,11 @@ def clientHandler(communication_socket, address):
 
                     if verify(sender_public_key, signature, label.encode() + time.encode()):
                         # prevent duplicates from blowing up
-                        if not all_requests.present((sender_public_key, label, time)):
-                            all_requests.append((sender_public_key, label, time))
+                        if not globies.all_requests.present((sender_public_key, label, time)):
+                            globies.all_requests.append((sender_public_key, label, time))
 
                             # check if you have resource
-                            data_by_label = dict(resources_by_label.get())
+                            data_by_label = dict(globies.resources_by_label.get())
                             resources_found = []
                             for l in data_by_label.keys():
                                 if label in l:
@@ -307,7 +307,7 @@ def clientHandler(communication_socket, address):
 
                             # gossip protocol
                             print('---SENDING MESSAGE TO ALL SERVERS---')
-                            for a, client_socket in servers.get().items():
+                            for a, client_socket in globies.servers.get().items():
                                 # prevent it from mirroring back to the sender
                                 if a != address:
                                     print('ADDRESS:', a)
@@ -315,15 +315,15 @@ def clientHandler(communication_socket, address):
                                     trust = ''
 
                                     # client is untrusted
-                                    if a in untrusted_keys.get().keys():
-                                        trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys.get()[a].encode()
+                                    if a in globies.untrusted_keys.get().keys():
+                                        trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + globies.trusted_keys.get()[a].encode()
                                         trust_sig = sign(trust)
                                         trust += '   '.encode()
                                         trust += trust_sig
 
                                     # client is trusted
-                                    if a in trusted_keys.get().keys():
-                                        trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys.get()[a].encode()
+                                    if a in globies.trusted_keys.get().keys():
+                                        trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + globies.trusted_keys.get()[a].encode()
                                         trust_sig = sign(trust)
                                         trust += '   '.encode()
                                         trust += trust_sig
@@ -334,7 +334,7 @@ def clientHandler(communication_socket, address):
                                         new_trust_chain = b':::'.join(new_trust_chain)
                         
                                         # encrypt and sign message
-                                        cipher2 = ciphers.get()[a]
+                                        cipher2 = globies.ciphers.get()[a]
 
                                         msg = 'query'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(label) + ':::'.encode() + time.encode() + ':::'.encode() + signature + ':::'.encode() + new_trust_chain
                                         sendall(client_socket, msg)
@@ -354,11 +354,11 @@ def clientHandler(communication_socket, address):
 
                     if verify(sender_public_key, signature, hashed.encode()):
                         # prevent duplicates from blowing up
-                        if not all_requests.present((sender_public_key, label, time)):
-                            all_requests.append((sender_public_key, hashed, time))
+                        if not globies.all_requests.present((sender_public_key, label, time)):
+                            globies.all_requests.append((sender_public_key, hashed, time))
 
                             # check if you have resource
-                            data_by_hash = dict(resources_by_hash.get())
+                            data_by_hash = dict(globies.resources_by_hash.get())
 
                             if hashed in data_by_hash.keys():
                                 resources_found = data_by_hash[hashed]
@@ -369,20 +369,20 @@ def clientHandler(communication_socket, address):
 
                             # gossip protocol
                             print('---SENDING MESSAGE TO ALL SERVERS---')
-                            for a, client_socket in servers.get().items():
+                            for a, client_socket in globies.servers.get().items():
                                 if a != address:
                                     print('ADDRESS:', a)
 
                                     trust = ''
                                     
-                                    if a in untrusted_keys.get().keys():
-                                        trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys.get()[a].encode()
+                                    if a in globies.untrusted_keys.get().keys():
+                                        trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + globies.trusted_keys.get()[a].encode()
                                         trust_sig = sign(trust)
                                         trust += '   '.encode()
                                         trust += trust_sig
 
-                                    if a in trusted_keys.get().keys():
-                                        trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys.get()[a].encode()
+                                    if a in globies.trusted_keys.get().keys():
+                                        trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + globies.trusted_keys.get()[a].encode()
                                         trust_sig = sign(trust)
                                         trust += '   '.encode()
                                         trust += trust_sig
@@ -392,7 +392,7 @@ def clientHandler(communication_socket, address):
                                         new_trust_chain = b':::'.join(new_trust_chain)
                         
                                         # encrypt and sign message
-                                        cipher2 = ciphers.get()[a]
+                                        cipher2 = globies.ciphers.get()[a]
 
                                         msg = 'query_by_hash'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(hashed) + ':::'.encode() + time.encode() + ':::'.encode() + signature + ':::'.encode() + new_trust_chain
                                         sendall(client_socket, msg)
@@ -410,12 +410,11 @@ def clientHandler(communication_socket, address):
 
                     if verify(sender_public_key, signature, resource_hash.encode() + time.encode()):
                         # prevent duplicates from blowing up
-                        if not all_requests.present((sender_public_key, label, time)):
-                            all_requests_comments.append((sender_public_key, resource_hash, time))
+                        if not globies.all_requests.present((sender_public_key, label, time)):
+                            globies.all_requests_comments.append((sender_public_key, resource_hash, time))
 
                             # check if you have resource
-                            with dict_lock_comments_by_hash:
-                                data_by_hash = dict(comments_by_hash)
+                            data_by_hash = dict(globies.comments_by_hash.get())
 
                             if resource_hash in data_by_hash.keys():
                                 comments_string = json.dumps(data_by_hash[resource_hash])
@@ -424,20 +423,20 @@ def clientHandler(communication_socket, address):
                                 t.start()
 
                             print('---SENDING MESSAGE TO ALL SERVERS---')
-                            with dict_lock_servers:
-                                for a, client_socket in servers.items():
+                            with globies.dict_lock_servers:
+                                for a, client_socket in globies.servers.items():
                                     if a != address:
                                         print('ADDRESS:', a)
 
                                         trust = ''
-                                        if a in untrusted_keys.get().keys():
-                                            trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + untrusted_keys.get()[a].encode()
+                                        if a in globies.untrusted_keys.get().keys():
+                                            trust = 'UNTRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + globies.untrusted_keys.get()[a].encode()
                                             trust_sig = sign(trust)
                                             trust += '   '.encode()
                                             trust += trust_sig
 
-                                        if a in trusted_keys.get().keys():
-                                            trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + trusted_keys.get()[a].encode()
+                                        if a in globies.trusted_keys.get().keys():
+                                            trust = 'TRUSTED   '.encode() + str(datetime.datetime.now()).encode() + '   '.encode() + self_authentication_public_key_string.encode() + '   '.encode() + globies.trusted_keys.get()[a].encode()
                                             trust_sig = sign(trust)
                                             trust += '   '.encode()
                                             trust += trust_sig
@@ -447,7 +446,7 @@ def clientHandler(communication_socket, address):
                                             new_trust_chain = b':::'.join(new_trust_chain)
                             
                                             # encrypt and sign message
-                                            cipher2 = ciphers.get()[a]
+                                            cipher2 = globies.ciphers.get()[a]
 
                                             msg = 'query_comments'.encode() + ':::'.encode() + cipher2.encrypt(sender_public_key) + ':::'.encode() + cipher2.encrypt(sender_ip_address) + ':::'.encode() + cipher2.encrypt(resource_hash) + ':::'.encode() + time.encode() + ':::'.encode() + signature + ':::'.encode() + new_trust_chain
                                             sendall(client_socket, msg)
@@ -494,7 +493,7 @@ def clientHandler(communication_socket, address):
                         resource_pub_key = resource['user'].strip()
                         signature = bytes.fromhex(resource['signature'].strip())
                         if verify(resource_pub_key, signature, resource['label'].encode() + resource['text'].encode() + resource['filehash'].encode()):
-                            all_resources.append(resource)
+                            globies.all_resources.append(resource)
                             item = 'QUERY RESPONSE (' + transitive_trust_valid + ' over ' + str(transitive_trust_hops) + ' hop FROM ' + parse_user_key(client_authentication_public_key) + '): ' + resource['label'] + ' (' + parse_user_key(resource['user']) + ')'
                             insert_to_resources_listbox(item)
                         else:
@@ -535,7 +534,7 @@ def clientHandler(communication_socket, address):
                         comment_pub_key = comment['user']
                         signature = bytes.fromhex(comment['signature'])
                         if verify(comment_pub_key, signature, comment['label'].encode() + comment['text'].encode() + comment['filehash'].encode()):
-                            all_resources.append(comment)
+                            globies.all_resources.append(comment)
                             item = 'COMMENT QUERY RESPONSE (' + transitive_trust_valid + ' over ' + str(transitive_trust_hops) + ' hop FROM ' + parse_user_key(client_authentication_public_key) + '): ' + comment['label'] + ' (' + parse_user_key(comment['user']) + ')'
                             insert_to_resources_listbox(item)
                         else:
@@ -549,7 +548,7 @@ def clientHandler(communication_socket, address):
                     print(resource_hash)
 
                     # check if you have resource
-                    data_by_hash = dict(resources_by_hash.get())
+                    data_by_hash = dict(globies.resources_by_hash.get())
 
                     if resource_hash in data_by_hash.keys():
                         resource = data_by_hash[resource_hash][0]
@@ -560,9 +559,9 @@ def clientHandler(communication_socket, address):
                         # ensure file exists
                         if hashed != '':
                             # find the client and send it
-                            for a, client_socket in servers.get().items():
+                            for a, client_socket in globies.servers.get().items():
                                 if a == communication_socket.getpeername()[0]:
-                                    cipher2 = ciphers.get()[a]
+                                    cipher2 = globies.ciphers.get()[a]
                                     sendall(client_socket, 'download_response:::'.encode() + file)
 
                 # get response from download request
@@ -570,8 +569,8 @@ def clientHandler(communication_socket, address):
                     file = content
                     hashed = hashlib.sha256(content).hexdigest()
 
-                    hashed = download_requests.get()[address]
-                    download_requests.delete(address)
+                    hashed = globies.download_requests.get()[address]
+                    globies.download_requests.delete(address)
 
                     path = filename_entry.get()
                     
@@ -610,7 +609,7 @@ def listen():
 
             print("CONNECTION DETECTED FROM:", address)
 
-            all_socket_locks.set_pair(address, threading.Lock())
+            globies.all_socket_locks.set_pair(address, threading.Lock())
 
             # make new thread for each client
             client = threading.Thread(target=clientHandler, args=(communication_socket, address,))
@@ -626,37 +625,37 @@ def listen():
 # remove socket from lists/dictionaries after connection is closed
 def cleanup(address):
     print("CLEANUP CONNECTION FOR", address)
-    server_exists = servers.present(address)
+    server_exists = globies.servers.present(address)
 
     if server_exists:
         server_exists.close()
-        servers.delete(address)
-    if all_servers.present(address):
-        all_servers.remove(address)
-    if ciphers.present(address):
-        ciphers.delete(address)
+        globies.servers.delete(address)
+    if globies.all_servers.present(address):
+        globies.all_servers.remove(address)
+    if globies.ciphers.present(address):
+        globies.ciphers.delete(address)
 
-    widget = untrusted_widgets.present(address)
+    widget = globies.untrusted_widgets.present(address)
     if widget:
         widget.config(bg='red')
 
-    widget = initiated_widgets.present(address)
+    widget = globies.initiated_widgets.present(address)
     if widget:
         widget.config(bg='red')
 
 # remove widget from tkinter display
 def destroy_widget(address):
     try:
-        if not all_servers.present(address):
-            widget = untrusted_widgets.present(address)
+        if not globies.all_servers.present(address):
+            widget = globies.untrusted_widgets.present(address)
             if widget:
                 widget.master.destroy()
-                untrusted_widgets.delete(address)
+                globies.untrusted_widgets.delete(address)
         
-            widget = initiated_widgets.present(address)
+            widget = globies.initiated_widgets.present(address)
             if widget:
                 widget.master.destroy()
-                initiated_widgets.delete(address)
+                globies.initiated_widgets.delete(address)
 
     except Exception as e:
         print("ERROR (destroy_widget) FOR ADDRESS", address, ":", e)
@@ -673,7 +672,7 @@ def toggle_trust(address):
             threadsafe_showinfo("Untrusted!", "This address has been removed from the trusted list (connections.xml).")
         else:
             # trust address
-            key = untrusted_keys.present(address)
+            key = globies.untrusted_keys.present(address)
             if key:
                 add_connection(address, key)
                 threadsafe_showinfo("Trusted!", "This address has been added to the trusted list (connections.xml).")
@@ -709,7 +708,7 @@ def add_sender_gui(address, key, trusted):
         widget = tk.Label(child, text=text, wraplength=100, bg='yellow')
         widget.grid(row=0, column=0, rowspan=2)
         
-        initiated_widgets.set_pair(address, widget)
+        globies.initiated_widgets.set_pair(address, widget)
     else:
         text = address + ' (' + parse_user_key(key) + ')'
         
@@ -719,7 +718,7 @@ def add_sender_gui(address, key, trusted):
         widget = tk.Label(child, text=text, wraplength=100, bg='yellow')
         widget.grid(row=0, column=0, rowspan=2)
         
-        untrusted_widgets.set_pair(address, widget)
+        globies.untrusted_widgets.set_pair(address, widget)
     
     reset = tk.Button(child, text='R', command=lambda: add_sender(address, key, trusted))
     reset.grid(row=0, column=1)
@@ -741,11 +740,11 @@ def add_sender(address, key, trusted):
         print('ADDING SENDER TO ADDRESS:', address)
 
         continue_logic = False
-        continue_logic = not all_servers.present(address)
+        continue_logic = not globies.all_servers.present(address)
 
         if continue_logic:
             destroy_widget(address)
-            all_servers.append(address)
+            globies.all_servers.append(address)
             widget = add_sender_gui(address, key, trusted)
 
             # create the actual socket
@@ -762,11 +761,11 @@ def add_sender_for_resource(response_type, address, key, trusted, resources_stri
         print('ADDING SENDER (FOR RESOURCE) TO ADDRESS:', address)
         
         continue_logic = False
-        continue_logic = not all_servers.present(address)
+        continue_logic = not globies.all_servers.present(address)
 
         if continue_logic:
             destroy_widget(address)
-            all_servers.append(address)
+            globies.all_servers.append(address)
             widget = add_sender_gui(address, key, trusted)
 
             # create the actual socket
@@ -776,9 +775,9 @@ def add_sender_for_resource(response_type, address, key, trusted, resources_stri
             sendall(client_socket, msg)
         else:
             exists = False
-            client_socket = servers.present(address)
+            client_socket = globies.servers.present(address)
             if client_socket:
-                cipher = ciphers.present(address)
+                cipher = globies.ciphers.present(address)
                 if cipher:
                     exists = True
 
@@ -803,7 +802,7 @@ def create_sender(address, server_public_key, widget, trusted):
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.connect(server)
         
-        all_socket_locks.set_pair(server, threading.Lock())
+        globies.all_socket_locks.set_pair(server, threading.Lock())
 
         # authenticate server
         print('---AUTHENTICATING WITH SERVER', address, '---')
@@ -853,15 +852,15 @@ def create_sender(address, server_public_key, widget, trusted):
         cipher = GCM(byteKey)
 
         print('---COMPLETED HANDSHAKE WITH SERVER', address, '---')
-        servers.set_pair(address, client_socket)
-        ciphers.set_pair(address, cipher)
+        globies.servers.set_pair(address, client_socket)
+        globies.ciphers.set_pair(address, cipher)
         
         if trusted:
-            widget = initiated_widgets.present(address)
+            widget = globies.initiated_widgets.present(address)
             if widget:
                 widget.config(bg='green')
         else:
-            widget = untrusted_widgets.present(address)
+            widget = globies.untrusted_widgets.present(address)
             if widget:
                 widget.config(bg='green')
 
@@ -924,11 +923,11 @@ def send_message():
 
         print('---SENDING MESSAGE TO ALL SERVERS---')
         
-        for address, client_socket in servers.get().items():
+        for address, client_socket in globies.servers.get().items():
             print('ADDRESS:', address)
 
             # encrypt and sign message
-            cipher = ciphers.get()[address]
+            cipher = globies.ciphers.get()[address]
 
             msg = 'message'.encode() + ':::'.encode() + channel.get().encode() + ':::'.encode() + cipher.encrypt(self_authentication_public_key_string) + ':::'.encode() + cipher.encrypt(text) + ':::'.encode() + time.encode() + ':::'.encode() + sign(text.encode() + time.encode())
             sendall(client_socket, msg)
@@ -1005,11 +1004,11 @@ def query_resource():
             time = str(datetime.datetime.now())
             
             print('---SENDING QUERY TO ALL SERVERS---')
-            for address, client_socket in servers.get().items():
+            for address, client_socket in globies.servers.get().items():
                 print('ADDRESS:', address)
 
                 # encrypt and sign message
-                cipher = ciphers.get()[address]
+                cipher = globies.ciphers.get()[address]
                 self_ip_address = client_socket.getsockname()[0]
 
                 msg = 'query_by_hash'.encode() + ':::'.encode() + cipher.encrypt(self_authentication_public_key_string) + ':::'.encode() + cipher.encrypt(self_ip_address) + ':::'.encode() + cipher.encrypt(hashed) + ':::'.encode() + time.encode() + ':::'.encode() + sign(hashed.encode())
@@ -1020,11 +1019,11 @@ def query_resource():
             time = str(datetime.datetime.now())
             
             print('---SENDING QUERY TO ALL SERVERS---')
-            for address, client_socket in servers.items():
+            for address, client_socket in globies.servers.items():
                 print('ADDRESS:', address)
 
                 # encrypt and sign message
-                cipher = ciphers.get()[address]
+                cipher = globies.ciphers.get()[address]
                 self_ip_address = client_socket.getsockname()[0]
 
                 msg = 'query'.encode() + ':::'.encode() + cipher.encrypt(self_authentication_public_key_string) + ':::'.encode() + cipher.encrypt(self_ip_address) + ':::'.encode() + cipher.encrypt(label) + ':::'.encode() + time.encode() + ':::'.encode() + sign(label.encode() + time.encode())
@@ -1048,11 +1047,11 @@ def query_comments():
             threadsafe_showinfo("Error!", "Label empty!")
             return
 
-        if selected_listbox_item.get() == None:
+        if globies.selected_listbox_item.get() == None:
             threadsafe_showinfo("None selected", "Please select a resource to find comments of")
             return
 
-        commenting_to = all_resources.get()[selected_listbox_item]
+        commenting_to = globies.all_resources.get()[globies.selected_listbox_item.get()]
         if commenting_to['label'] == label and commenting_to['text'] == text:
             hashed = hashlib.sha256(commenting_to['label'].encode() + commenting_to['text'].encode()).hexdigest()
         else:
@@ -1062,11 +1061,11 @@ def query_comments():
         time = str(datetime.datetime.now())
         
         print('---SENDING QUERY TO ALL SERVERS---')
-        for address, client_socket in servers.get().items():
+        for address, client_socket in globies.servers.get().items():
             print('ADDRESS:', address)
 
             # encrypt and sign message
-            cipher = ciphers.get()[address]
+            cipher = globies.ciphers.get()[address]
             self_ip_address = client_socket.getsockname()[0]
 
             msg = 'query_comments'.encode() + ':::'.encode() + cipher.encrypt(self_authentication_public_key_string) + ':::'.encode() + cipher.encrypt(self_ip_address) + ':::'.encode() + cipher.encrypt(hashed) + ':::'.encode() + time.encode() + ':::'.encode() + sign(hashed.encode() + time.encode())
@@ -1079,8 +1078,6 @@ def query_comments():
 
 # select an item in the resources listbox
 def select_resources_listbox():
-    global selected_listbox_item
-
     try:
         selected_indices = resources_listbox.curselection()
         unselect_resources_listbox()
@@ -1090,8 +1087,8 @@ def select_resources_listbox():
             selected_value = resources_listbox.get(selected_indices)
             resources_listbox.itemconfig(selected_indices, bg="yellow", selectbackground="yellow")
             
-            with selected_listbox_item_lock:
-                selected_listbox_item = selected_indices
+            with globies.selected_listbox_item.lock():
+                globies.selected_listbox_item.set(selected_indices)
                 
                 hash_entry.config(state=tk.NORMAL)
                 label_entry.config(state=tk.NORMAL)
@@ -1104,7 +1101,7 @@ def select_resources_listbox():
                 filename_entry.delete(0, tk.END)
                 filehash_entry.delete(0, tk.END)
 
-                selected = all_resources.get()[selected_listbox_item]
+                selected = globies.all_resources.get()[globies.selected_listbox_item.get()]
                 label_entry.insert(0, selected['label'])
                 text_text.insert("1.0", selected['text'])
                 
@@ -1121,8 +1118,6 @@ def select_resources_listbox():
 
 # unselect all items in the resources listbox
 def unselect_resources_listbox():
-    global selected_listbox_item
-    
     resources_listbox.selection_clear(0, tk.END)
     
     hash_entry.config(state=tk.NORMAL)
@@ -1136,23 +1131,21 @@ def unselect_resources_listbox():
     filename_entry.delete(0, tk.END)
     filehash_entry.delete(0, tk.END)
     
-    selected_listbox_item.set(None)
+    globies.selected_listbox_item.set(None)
 
     for i in range(resources_listbox.size()):
         resources_listbox.itemconfig(i, bg="white", selectbackground="grey")
 
 # replace all items in resources listbox with database values
 def reset_resources_listbox():
-    global all_resources, selected_listbox_item, resources_by_label, resources_by_hash, comments_by_hash
-    
     data, data_by_labels, data_by_hashes = read_resources()
     _, comment_hash, _ = read_resources(resource_type='comment')
 
-    resources_by_label.set(dict(data_by_labels))
-    resources_by_hash.set(dict(data_by_hashes))
-    comments_by_hash.set(dict(comment_hash))
-    all_resources.set(list(data))
-    selected_listbox_item.set(None)
+    globies.resources_by_label.set(dict(data_by_labels))
+    globies.resources_by_hash.set(dict(data_by_hashes))
+    globies.comments_by_hash.set(dict(comment_hash))
+    globies.all_resources.set(list(data))
+    globies.selected_listbox_item.set(None)
     
     resources_listbox.delete(0, tk.END)
 
@@ -1171,8 +1164,8 @@ def insert_to_resources_listbox(item):
 def mirror_selected_resource():
     try:
         try:
-            assert selected_listbox_item.get() != None
-            mirroring = all_resources.get()[selected_listbox_item]
+            assert globies.selected_listbox_item.get() != None
+            mirroring = globies.all_resources.get()[globies.selected_listbox_item.get()]
         except IndexError:
             threadsafe_showinfo("Index Error!", "Could not find selected resource")
             return
@@ -1198,21 +1191,21 @@ def mirror_selected_resource():
 def download_selected_resource():
     try:
         try:
-            assert selected_listbox_item.get() != None
-            downloading = all_resources.get()[selected_listbox_item]
+            assert globies.selected_listbox_item.get() != None
+            downloading = globies.all_resources.get()[globies.selected_listbox_item.get()]
             downloading_hash = downloading['hash']
             downloading_ip = downloading['ip']
         except IndexError:
             threadsafe_showinfo("Index Error!", "Could not find selected resource")
             return
 
-        for address, client_socket in servers.get().items():
+        for address, client_socket in globies.servers.get().items():
             if address == downloading_ip:  
                 # encrypt and sign message
-                cipher = ciphers.get()[address]
+                cipher = globies.ciphers.get()[address]
 
                 msg = 'download'.encode() + ':::'.encode() + cipher.encrypt(downloading_hash)
-                download_requests.set_pair(address, downloading_hash)
+                globies.download_requests.set_pair(address, downloading_hash)
                 
                 sendall(client_socket, msg)
 
