@@ -4,11 +4,13 @@ P2P chat app written in Python and secured by web-of-trust.
 ## Installation
 First, clone the repository
 
-`git clone https://github.com/coolcodercat464/gossip_lan`
+`git clone https://github.com/coolcodercat464/gossip_lan -b dev`
 
 Then, run this command in bash to generate your public/private key pair. Use the password you enter to login to the app.
 
-`ssh-keygen -t ed25519 -f key`
+`mkdir -p ~/.config/gossip_lan/keys`
+
+`ssh-keygen -t ed25519 -f ~/.config/gossip_lan/keys/key`
 
 Make sure you allow incoming TCP connections on port 65432! You can do it like this:
 

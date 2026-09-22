@@ -2,6 +2,14 @@ from pdf_tools import get_pdf_data_clean
 import hashlib
 from bs4 import BeautifulSoup
 from crypto_tools import sign
+import threading
+
+# working directory stuff
+import os
+from pathlib import Path
+
+script_dir = Path(__file__).resolve().parent
+os.chdir(script_dir)
 
 # thread safety
 file_lock_messages = threading.Lock() # for messages
