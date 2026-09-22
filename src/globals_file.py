@@ -22,8 +22,9 @@ class SafeSharedState:
 
 # thread safe list (global variable, sharable state)
 class SafeList(SafeSharedState):
-    def __init__(self, value=[]):
-        super().__init__(value)
+    def __init__(self, value=None):
+        self.value = value if value != None else []
+        self.tlock = threading.Lock()
 
     def append(self, item):
         with self.tlock:
@@ -39,8 +40,9 @@ class SafeList(SafeSharedState):
 
 # thread safe dict (global variable, sharable state)
 class SafeDict(SafeSharedState):
-    def __init__(self, value=dict()):
-        super().__init__(value)
+    def __init__(self, value=None):
+        self.value = value if value != None else dict()
+        self.tlock = threading.Lock()
 
     def set_pair(self, key, value):
         with self.tlock:

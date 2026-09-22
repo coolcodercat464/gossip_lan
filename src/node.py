@@ -803,7 +803,7 @@ def create_sender(address, server_public_key, widget, trusted):
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.connect(server)
         
-        all_socket_locks.set_pair(server, threading.Lock()
+        all_socket_locks.set_pair(server, threading.Lock())
 
         # authenticate server
         print('---AUTHENTICATING WITH SERVER', address, '---')
@@ -853,10 +853,9 @@ def create_sender(address, server_public_key, widget, trusted):
         cipher = GCM(byteKey)
 
         print('---COMPLETED HANDSHAKE WITH SERVER', address, '---')
-        print(servers)
-
         servers.set_pair(address, client_socket)
         ciphers.set_pair(address, cipher)
+        
         if trusted:
             widget = initiated_widgets.present(address)
             if widget:
@@ -865,8 +864,6 @@ def create_sender(address, server_public_key, widget, trusted):
             widget = untrusted_widgets.present(address)
             if widget:
                 widget.config(bg='green')
-
-        print(servers)
 
         return (client_socket, cipher)
 
