@@ -16,6 +16,11 @@ file_lock_messages = threading.Lock() # for messages
 file_lock_connections = threading.Lock() # for connections
 file_lock_resources = threading.Lock() # for resources
 
+# ip address
+from socket_tools import get_local_ip
+
+self_ip_address = get_local_ip()
+
 # reads the connections.xml file
 # <connections><connection><address>...</address> <key>...</key></connection>... </connections>
 # TODO - add trust levels
@@ -126,7 +131,7 @@ def add_message(user, text, channel, time):
     with file_lock_messages:
         with open('../database/messages.xml', 'r') as f:
             bs = BeautifulSoup(f, 'xml')
-
+            
     # add data
     user_tag = bs.new_tag("user")
     user_tag.string = user
@@ -150,7 +155,7 @@ def add_message(user, text, channel, time):
     # add msg tag to file
     messages = bs.find("messages")
     messages.append(msg_tag)
-  
+    
     with file_lock_messages:
         with open('../database/messages.xml', 'w') as f:
             f.write(str(bs))

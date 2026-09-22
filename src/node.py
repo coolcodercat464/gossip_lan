@@ -963,7 +963,7 @@ def create_resource():
         reset_resources_listbox()
 
         threadsafe_showinfo("Resource added!", "Your resource has been created.")
-        
+    
     except Exception as e:
         print("ERROR (create_resource):", e)
         threadsafe_showinfo("Error (create_resource)!", e)
@@ -1087,30 +1087,29 @@ def select_resources_listbox():
             selected_value = resources_listbox.get(selected_indices)
             resources_listbox.itemconfig(selected_indices, bg="yellow", selectbackground="yellow")
             
-            with globies.selected_listbox_item.lock():
-                globies.selected_listbox_item.set(selected_indices)
-                
-                hash_entry.config(state=tk.NORMAL)
-                label_entry.config(state=tk.NORMAL)
-                text_text.config(state=tk.NORMAL)
-                filehash_entry.config(state=tk.NORMAL)
-                
-                hash_entry.delete(0, tk.END)
-                label_entry.delete(0, tk.END)
-                text_text.delete("1.0", tk.END)
-                filename_entry.delete(0, tk.END)
-                filehash_entry.delete(0, tk.END)
+            globies.selected_listbox_item.set(selected_indices)
+            
+            hash_entry.config(state=tk.NORMAL)
+            label_entry.config(state=tk.NORMAL)
+            text_text.config(state=tk.NORMAL)
+            filehash_entry.config(state=tk.NORMAL)
+            
+            hash_entry.delete(0, tk.END)
+            label_entry.delete(0, tk.END)
+            text_text.delete("1.0", tk.END)
+            filename_entry.delete(0, tk.END)
+            filehash_entry.delete(0, tk.END)
 
-                selected = globies.all_resources.get()[globies.selected_listbox_item.get()]
-                label_entry.insert(0, selected['label'])
-                text_text.insert("1.0", selected['text'])
-                
-                filename_entry.insert(0, selected['filename'])
-                filehash_entry.insert(0, selected['filehash'])
-                filehash_entry.config(state="readonly")
-                
-                hash_entry.insert(0, hashlib.sha256(selected['label'].encode() + selected['text'].encode()).hexdigest())
-                hash_entry.config(state="readonly")
+            selected = globies.all_resources.get()[globies.selected_listbox_item.get()]
+            label_entry.insert(0, selected['label'])
+            text_text.insert("1.0", selected['text'])
+            
+            filename_entry.insert(0, selected['filename'])
+            filehash_entry.insert(0, selected['filehash'])
+            filehash_entry.config(state="readonly")
+            
+            hash_entry.insert(0, hashlib.sha256(selected['label'].encode() + selected['text'].encode()).hexdigest())
+            hash_entry.config(state="readonly")
                     
     except Exception as e:
         print("ERROR (select_resources_listbox):", e)
