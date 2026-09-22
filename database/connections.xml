@@ -1,1 +1,5 @@
-<connections></connections>
+<connections>
+<connection>
+<key>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIlzSx6yVopRKg6iIHSJkdIoHQrJQNAcHEGq7cCKE09g panda@archlinux</key><address>192.168.0.190</address>
+</connection>
+</connections>

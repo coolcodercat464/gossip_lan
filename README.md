@@ -18,7 +18,9 @@ Make sure you allow incoming TCP connections on port 65432! You can do it like t
 
 Create a python virtual environment with
 
-`python -m venv .`
+`python -m venv venv`
+
+`source venv/bin/activate`
 
 And install the pip dependencies with
 

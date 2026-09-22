@@ -609,7 +609,6 @@ def listen():
             communication_socket, address = listener.accept()
 
             print("CONNECTION DETECTED FROM:", address)
-            print(dict_lock_socket_locks)
 
             all_socket_locks.set_pair(address, threading.Lock())
 
@@ -628,6 +627,7 @@ def listen():
 def cleanup(address):
     print("CLEANUP CONNECTION FOR", address)
     server_exists = servers.present(address)
+
     if server_exists:
         server_exists.close()
         servers.delete(address)
@@ -709,7 +709,7 @@ def add_sender_gui(address, key, trusted):
         widget = tk.Label(child, text=text, wraplength=100, bg='yellow')
         widget.grid(row=0, column=0, rowspan=2)
         
-        initiated_widgets.value[address] = widget
+        initiated_widgets.set_pair(address, widget)
     else:
         text = address + ' (' + parse_user_key(key) + ')'
         
@@ -719,7 +719,7 @@ def add_sender_gui(address, key, trusted):
         widget = tk.Label(child, text=text, wraplength=100, bg='yellow')
         widget.grid(row=0, column=0, rowspan=2)
         
-        untrusted_widgets.value[address] = widget
+        untrusted_widgets.set_pair(address, widget)
     
     reset = tk.Button(child, text='R', command=lambda: add_sender(address, key, trusted))
     reset.grid(row=0, column=1)
@@ -803,7 +803,7 @@ def create_sender(address, server_public_key, widget, trusted):
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.connect(server)
         
-        all_socket_locks.value[server] = threading.Lock()
+        all_socket_locks.set_pair(server, threading.Lock()
 
         # authenticate server
         print('---AUTHENTICATING WITH SERVER', address, '---')
@@ -855,8 +855,8 @@ def create_sender(address, server_public_key, widget, trusted):
         print('---COMPLETED HANDSHAKE WITH SERVER', address, '---')
         print(servers)
 
-        servers.value[address] = client_socket
-        ciphers.value[address] = cipher
+        servers.set_pair(address, client_socket)
+        ciphers.set_pair(address, cipher)
         if trusted:
             widget = initiated_widgets.present(address)
             if widget:
