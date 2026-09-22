@@ -21,7 +21,7 @@ from pdf_tools import get_pdf_data_clean
 from crypto_tools import GCM, verify
 from socket_tools import get_local_ip
 from database_tools import *
-from globals import *
+from globals_file import *
 
 import socket_tools
 import crypto_tools
@@ -48,7 +48,7 @@ from tkinter import messagebox
 
 # load local ssh public and private keys
 # generated with 'ssh-keygen -t ed25519'
-with open('key.pub', 'rb') as key_file:
+with open(os.path.expanduser('~/.config/gossip_lan/keys/key.pub'), 'rb') as key_file:
     public_key_bytes = key_file.read()
 
 # get details about yourself
@@ -69,7 +69,7 @@ while True:
     print()
     password = input("Enter your SSH key password: ").encode()
     try:
-        with open('key', 'rb') as key_file:
+        with open(os.path.expanduser('~/.config/gossip_lan/keys/key'), 'rb') as key_file:
             self_authentication_private_key = serialization.load_ssh_private_key(key_file.read(), password=password)
         break
     except Exception as e:
@@ -571,7 +571,7 @@ def clientHandler(communication_socket, address):
                     hashed = hashlib.sha256(content).hexdigest()
 
                     hashed = download_requests.get()[address]
-                    download_requests.del(address)
+                    download_requests.delete(address)
 
                     path = filename_entry.get()
                     
@@ -630,11 +630,11 @@ def cleanup(address):
     server_exists = servers.present(address)
     if server_exists:
         server_exists.close()
-        servers.del(address)
+        servers.delete(address)
     if all_servers.present(address):
         all_servers.remove(address)
     if ciphers.present(address):
-        ciphers.del(address)
+        ciphers.delete(address)
 
     widget = untrusted_widgets.present(address)
     if widget:
@@ -651,12 +651,12 @@ def destroy_widget(address):
             widget = untrusted_widgets.present(address)
             if widget:
                 widget.master.destroy()
-                untrusted_widgets.del(address)
+                untrusted_widgets.delete(address)
         
             widget = initiated_widgets.present(address)
             if widget:
                 widget.master.destroy()
-                initiated_widgets.del(address)
+                initiated_widgets.delete(address)
 
     except Exception as e:
         print("ERROR (destroy_widget) FOR ADDRESS", address, ":", e)
